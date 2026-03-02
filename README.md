@@ -1,10 +1,10 @@
 # nixi
 
-nixi is a soon to be unix-like operating system.
+nixi is a unix-like operating system.
 
 ## Roadmap
 - [ ] builtin bootloader
-- [ ] physical memory allocator
+- [X] physical memory allocator
 
 ## Development
 The script for running in qemu can be found under `dev/`. In order to run in qemu you must have [OVMF](https://github.com/tianocore/tianocore.github.io/wiki/OVMF) installed.
