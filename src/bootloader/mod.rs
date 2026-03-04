@@ -1,14 +1,15 @@
 mod error;
 
 use crate::kernel::mem::pma::PhysicalMemoryAllocator;
+use crate::kernel::mem::paging;
 
 use error::BootError;
 
 use uefi::table::cfg::ConfigTableEntry;
-use uefi::mem::memory_map::MemoryMapOwned;
 use uefi::prelude::*;
 
 
+// TODO: add the page table to the boot info, or have it as a static
 pub struct BootInfo {
     pub acpi: *const core::ffi::c_void,
     pub pma: PhysicalMemoryAllocator,
@@ -27,8 +28,11 @@ pub fn boot() -> Result<(), BootError> {
 
     match acpi {
         Some(acpi) => {
+            uefi::println!("info: acpi: {:x?}", acpi);
+
             let mmap = unsafe { boot::exit_boot_services(None) };
-            let pma = PhysicalMemoryAllocator::new(mmap);
+            let mut pma = PhysicalMemoryAllocator::new(&mmap);
+            let table = paging::init(&mmap, &mut pma);
 
             Ok(())
         },

@@ -2,6 +2,7 @@
 ///! itself with virtual memory.
 
 use uefi::mem::memory_map::{MemoryType, MemoryMap, MemoryMapOwned};
+
 use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
@@ -12,7 +13,7 @@ pub struct PhysicalMemoryAllocator {
 
 impl PhysicalMemoryAllocator {
     /// Initialize the physical memory allocator
-    pub fn new(mmap: MemoryMapOwned) -> PhysicalMemoryAllocator {
+    pub fn new(mmap: &MemoryMapOwned) -> PhysicalMemoryAllocator {
         let mut bitmap = [0u128; 2048];
 
         for descriptor in mmap.entries() {
@@ -55,8 +56,10 @@ impl PhysicalMemoryAllocator {
         None
     }
 
-    /// Free a continuous set of physical frames
-    pub fn free(&mut self, address: *const (), frames: usize) {
+    /// Free a continuous set of physical frames.
+    ///
+    /// free is unsafe because the caller must ensure that the address and frame count is valid.
+    pub unsafe fn free(&mut self, address: *const (), frames: usize) {
         assert_ne!(frames, 0);
 
         let base = address as usize / 4096;

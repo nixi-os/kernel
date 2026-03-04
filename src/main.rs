@@ -1,3 +1,5 @@
+#![feature(ptr_as_ref_unchecked)]
+
 #![no_main]
 #![no_std]
 
@@ -22,6 +24,8 @@ fn main() -> Status {
 
         loop {}
     }
+
+    loop {}
 
     Status::SUCCESS
 }

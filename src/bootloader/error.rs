@@ -1,9 +1,11 @@
+use crate::kernel::mem::error::MemoryError;
 
 
 #[derive(Debug)]
 pub enum BootError {
     AcpiNotFound,
     UefiError(uefi::Error<()>),
+    MemoryError(MemoryError),
 }
 
 impl core::fmt::Display for BootError {
@@ -11,6 +13,7 @@ impl core::fmt::Display for BootError {
         match self {
             BootError::AcpiNotFound => f.write_str("unable to find ACPI in config table"),
             BootError::UefiError(err) => f.write_fmt(format_args!("uefi: {}", err)),
+            BootError::MemoryError(err) => f.write_fmt(format_args!("memory: {}", err)),
         }
     }
 }

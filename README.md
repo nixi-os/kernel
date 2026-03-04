@@ -6,6 +6,9 @@ nixi is a unix-like operating system.
 - [ ] builtin bootloader
 - [X] physical memory allocator
 
+## Design
+The kernel is identity mapped, and the userspace uses traditional paging to isolate process memory
+
 ## Development
 The script for running in qemu can be found under `dev/`. In order to run in qemu you must have [OVMF](https://github.com/tianocore/tianocore.github.io/wiki/OVMF) installed.
 
