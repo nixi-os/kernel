@@ -26,4 +26,10 @@ impl From<uefi::Error<()>> for BootError {
     }
 }
 
+impl From<MemoryError> for BootError {
+    fn from(err: MemoryError) -> BootError {
+        BootError::MemoryError(err)
+    }
+}
+
 

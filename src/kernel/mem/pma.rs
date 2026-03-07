@@ -1,6 +1,8 @@
 ///! The physical memory allocator handles allocation of physical frames, it does not concern
 ///! itself with virtual memory.
 
+use crate::helpers::*;
+
 use uefi::mem::memory_map::{MemoryType, MemoryMap, MemoryMapOwned};
 
 use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
@@ -14,25 +16,21 @@ pub struct PhysicalMemoryAllocator {
 impl PhysicalMemoryAllocator {
     /// Initialize the physical memory allocator
     pub fn new(mmap: &MemoryMapOwned) -> PhysicalMemoryAllocator {
-        let mut bitmap = [0u128; 2048];
+        let mut bitmap = [u128::MAX; 2048];
+
+        log!("initializing pma with {} mmap entries", mmap.len());
 
         for descriptor in mmap.entries() {
-            crate::helpers::log!("descriptor: {:x?}", descriptor);
-
-            if descriptor.ty != MemoryType::CONVENTIONAL {
+            if descriptor.ty == MemoryType::CONVENTIONAL {
                 let base = descriptor.phys_start as usize / 4096;
 
                 for frame in 0..descriptor.page_count {
                     let bit = base + frame as usize;
 
-                    // TODO: the bug is that we panic here, the issue was never the loop. lets
-                    // implement a panic handler that writes to the serial
-                    bitmap[bit / u128::BITS as usize] |= 1u128 << (bit % u128::BITS as usize);
+                    bitmap[bit / u128::BITS as usize] &= !(1u128 << (bit % u128::BITS as usize));
                 }
             }
         }
-
-        crate::helpers::log!("done");
 
         PhysicalMemoryAllocator {
             bitmap,
@@ -78,7 +76,11 @@ impl PhysicalMemoryAllocator {
 
 unsafe impl FrameAllocator<Size4KiB> for PhysicalMemoryAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        log!("try allocating frame");
+
         let frame = self.alloc(1)?;
+
+        log!("allocated frame: {:x?}", frame);
 
         Some(PhysFrame::containing_address(PhysAddr::new(frame as u64)))
     }

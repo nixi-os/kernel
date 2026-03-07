@@ -4,6 +4,7 @@ mod error;
 
 use crate::kernel::mem::pma::PhysicalMemoryAllocator;
 use crate::kernel::mem::paging;
+use crate::kernel::irq;
 
 use error::BootError;
 
@@ -31,8 +32,10 @@ pub fn boot() -> Result<(), BootError> {
     match acpi {
         Some(acpi) => {
             let mmap = unsafe { boot::exit_boot_services(None) };
+
+            irq::init();
+
             let mut pma = PhysicalMemoryAllocator::new(&mmap);
-            let table = paging::init(&mmap, &mut pma);
 
             Ok(())
         },

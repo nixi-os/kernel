@@ -1,4 +1,5 @@
 #![feature(ptr_as_ref_unchecked)]
+#![feature(abi_x86_interrupt)]
 
 #![no_main]
 #![no_std]
@@ -8,12 +9,11 @@ mod kernel;
 mod helpers;
 
 use uefi::prelude::*;
-use uefi::println;
 
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    println!("error: bootd panic: {}", info.message());
+    error!("panic: {}", info.message());
 
     loop {}
 }
@@ -21,7 +21,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 #[entry]
 fn main() -> Status {
     if let Err(err) = bootloader::boot() {
-        println!("bootloader: error: {}", err);
+        error!("error: {}", err);
     }
 
     loop {}
