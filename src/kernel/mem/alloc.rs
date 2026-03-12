@@ -1,90 +1,116 @@
 use crate::kernel::mem::pma;
 
 use core::alloc::{GlobalAlloc, Layout};
-use core::ptr;
+use core::cell::RefCell;
+use core::mem;
 
 
 #[global_allocator]
 static ALLOCATOR: Allocator = Allocator::new();
 
-/// The block header is at the start of each free block, a block can have any size and alignment
+/// Every block has a block header, the block header will always be between the padding and the block, free blocks must have zero padding
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 struct BlockHeader {
     next: Option<*mut BlockHeader>,
     size: usize,
+    padding: usize,
 }
 
 impl BlockHeader {
-    /// Find the first block with atleast size bytes
-    pub fn find(&mut self, size: usize) -> Option<*mut BlockHeader> {
-        if self.size >= size {
-            Some(ptr::from_mut(self))
-        } else {
-            self.next.and_then(|next| unsafe { (*next).find(size) })
+    pub const fn new(next: Option<*mut BlockHeader>, size: usize, padding: usize) -> BlockHeader {
+        BlockHeader {
+            next,
+            size,
+            padding,
         }
+    }
+
+    /// Find the first block with atleast size bytes and remove it from free list
+    pub fn find(&mut self, size: usize) -> Option<*mut BlockHeader> {
+        self.next.and_then(|next| unsafe {
+            if (*next).size >= size {
+                self.next = (*next).next;
+
+                Some(next)
+            } else {
+                (*next).find(size)
+            }
+        })
     }
 }
 
+/// The global allocator handles memory allocation in the kernel
 pub struct Allocator {
-    first: Option<*mut BlockHeader>,
+    free: RefCell<BlockHeader>,
 }
 
 impl Allocator {
     pub const fn new() -> Allocator {
         Allocator {
-            first: None,
+            free: RefCell::new(BlockHeader::new(None, 0, 0)),
         }
     }
 
-    pub fn prepare(&self, size: usize) -> *mut BlockHeader {
-        match self.first.and_then(|first| unsafe { (*first).find(size) }) {
+
+    /// Find a block with size bytes and remove it from free list
+    /// or allocate a new block with size bytes
+    fn prepare_block(&self, size: usize) -> *mut BlockHeader {
+        // TODO: we should split the block if its too big
+        match self.free.borrow_mut().find(size) {
             Some(header) => header,
             None => {
-                let header = pma::alloc(size / 4096);
-                // TODO: write header into header
+                let header = pma::alloc(size.div_ceil(4096)) as *mut BlockHeader;
 
-                header as *mut BlockHeader
+                unsafe {
+                    *header = BlockHeader::new(None, size, 0);
+                }
+
+                header
             },
+        }
+    }
+
+    /// Push a block to the free list
+    fn free(&self, block: *mut BlockHeader) {
+        // TODO: we should do defragmentation, and free complete frames back to the pma
+        let mut first = self.free.borrow_mut();
+
+        unsafe {
+            (*block).next = first.next;
+
+            first.next = Some(block);
         }
     }
 }
 
 unsafe impl GlobalAlloc for Allocator {
+    /// Allocate memory based on layout. The allocation will have atleast size bytes
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if let Some(header) = self.first {
-            unsafe {
-                (*header).find(layout.size());
-            }
+        let old_header = self.prepare_block((layout.align() - 1) + mem::size_of::<BlockHeader>() + layout.size());
+
+        unsafe {
+            let padding = (old_header.byte_add(mem::size_of::<BlockHeader>()) as *mut u8).align_offset(layout.align());
+
+            let new_header = old_header.byte_add(padding);
+
+            *new_header = BlockHeader::new((*old_header).next, (*old_header).size - padding, padding);
+
+            new_header.byte_add(mem::size_of::<BlockHeader>()) as *mut u8
         }
-
-        // implementation steps:
-        // if there arent enough frames then we must allocate enough
-        //
-        // find a continuous region of memory inside those pages that is big enough, we can
-        // probably do this by finding the lowest available address for the start and just add the
-        // size to it for the end.
-        //
-        // implementation notes:
-        // only frames which have been allocated by the pma, but are not allocated by the allocator
-        // should have a block header
-        //
-        // blocks dont have to be frames, infact in most cases they wont be, eg. in cases where we
-        // need 5 frames we would have it as a single block, this significantly simplifies the
-        // implementation
-
-        todo!()
     }
 
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        // implementation steps:
-        // detect complete frames and free them to the pma
-        //
-        // incomplete frames should be added to the frame linked list
-        //
-        // implementation notes:
-        // we should also do e
+    /// Deallocate memory. dealloc does not use the layout, rather it uses the block header
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        unsafe {
+            let old_header = ptr.byte_sub(mem::size_of::<BlockHeader>()) as *mut BlockHeader;
 
-        todo!()
+            let new_header = old_header.byte_sub((*old_header).padding);
+
+            *new_header = BlockHeader::new(None, (*old_header).size + (*old_header).padding, 0);
+
+            self.free(new_header);
+        }
     }
 }
 

@@ -34,6 +34,14 @@ pub fn boot() -> Result<(), BootError> {
 
             pma::init(&mmap);
 
+            let mut vector = alloc::vec::Vec::<char>::new();
+
+            crate::log!("vector: {:?}", vector);
+
+            vector.push('t');
+
+            crate::log!("vector: {:?}", vector);
+
             Ok(())
         },
         None => Err(BootError::AcpiNotFound),

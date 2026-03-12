@@ -97,7 +97,7 @@ unsafe impl FrameAllocator<Size4KiB> for PhysicalMemoryAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
         log!("try allocating frame");
 
-        let frame = self.alloc(1)?;
+        let frame = self.alloc(1);
 
         log!("allocated frame: {:x?}", frame);
 
