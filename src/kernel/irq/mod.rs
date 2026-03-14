@@ -1,13 +1,11 @@
+mod pic8259;
+
 use crate::helpers::*;
 
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::instructions::interrupts;
 use lazy_static::lazy_static;
-use spin::Mutex;
-use pic8259::ChainedPics;
 
-
-static PICS: Mutex<ChainedPics> = Mutex::new(unsafe { ChainedPics::new_contiguous(32) });
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -26,13 +24,9 @@ pub fn init() {
 
     IDT.load();
 
-    unsafe {
-        let mut pics = PICS.lock();
+    pic8259::init(32);
 
-        pics.initialize();
-
-        pics.write_masks(0b1110_1111, 0xff);
-    }
+    pic8259::mask(0b1111_1111_1110_1111);
 
     interrupts::enable();
 }
@@ -58,7 +52,7 @@ extern "x86-interrupt" fn com1_interrupt(_stack_frame: InterruptStackFrame) {
 
         log!("got keyboard press: {}", byte as char);
 
-        PICS.lock().notify_end_of_interrupt(36);
+        pic8259::end_of_interrupt(36);
     }
 }
 

@@ -1,2 +1,7 @@
 [build]
 target = "x86_64-unknown-uefi"
+
+[target.x86_64-unknown-uefi]
+runner = ["sh", "-c", "mkdir -p dev/esp/EFI/BOOT && cp \"$1\" dev/esp/EFI/BOOT/BOOTX64.EFI && qemu-system-x86_64 -M q35 -m 512 -nographic -serial mon:stdio -drive if=pflash,format=raw,unit=0,readonly=on,file=/usr/share/edk2/x64/OVMF_CODE.4m.fd -drive if=pflash,format=raw,unit=1,file=./dev/OVMF_VARS.fd -drive format=raw,file=fat:rw:./dev/esp,media=disk", "placeholder"]
+
+
