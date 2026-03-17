@@ -1,12 +1,16 @@
+use crate::helpers::*;
+
 use x86::io;
 
 const MASTER: u16 = 0x20;
 const SLAVE: u16 = 0xa0;
 const WAIT: u16 = 0x80;
 
-/// Initialize 8259 interrupt controller
+/// Initialize 8259A interrupt controller
 pub fn init(offset: u8) {
     assert_eq!(offset % 8, 0);
+
+    log!("initializing 8259A interrupt controller with irq offset: {}", offset);
 
     unsafe {
         // ICW1: identify ICW1 and enable ICW4

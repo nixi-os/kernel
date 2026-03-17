@@ -1,4 +1,4 @@
-//! The boot phase initializes subsystems before passing control to the kernel entry
+//! The boot phase initializes core subsystems before passing control to the kernel entry
 
 mod error;
 

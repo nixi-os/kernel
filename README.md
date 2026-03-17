@@ -1,6 +1,6 @@
 # nixi
 
-nixi is a unix-like operating system.
+nixi is a unix-like operating system written in rust for x86_64.
 
 ## Roadmap
 - [X] physical memory allocator

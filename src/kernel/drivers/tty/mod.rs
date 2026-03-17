@@ -1,46 +1,43 @@
+pub mod pool;
 mod serial;
 
-use serial::Serial;
-
-use spin::Mutex;
-use lazy_static::lazy_static;
-
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 
-lazy_static! {
-    pub static ref TTY: Mutex<TtyHandle<Serial>> = Mutex::new(TtyHandle::new(Serial::new(0x3f8)));
-}
 
 /// A tty is a terminal interface
-pub trait Tty {
+pub trait Tty: Send + Sync {
     fn write(&mut self, buf: &[u8]);
+
+    fn read(&mut self) -> Vec<u8>;
 }
 
 impl Tty for Box<dyn Tty> {
     fn write(&mut self, buf: &[u8]) {
         self.as_mut().write(buf);
     }
-}
 
-/// A handle to a tty implementation
-pub struct TtyHandle<T: Tty> {
-    tty: T,
-}
-
-impl<T: Tty> TtyHandle<T> {
-    pub const fn new(tty: T) -> TtyHandle<T> {
-        TtyHandle {
-            tty,
-        }
+    fn read(&mut self) -> Vec<u8> {
+        self.as_mut().read()
     }
 }
 
-impl<T: Tty> core::fmt::Write for TtyHandle<T> {
-    fn write_str(&mut self, string: &str) -> Result<(), core::fmt::Error> {
-        self.tty.write(string.as_bytes());
+/// Wrapper type for tty to satisfy orphan rules
+pub struct TtyHandle(Box<dyn Tty>);
+
+impl TtyHandle {
+    pub fn new(tty: Box<dyn Tty>) -> TtyHandle {
+        TtyHandle(tty)
+    }
+}
+
+impl core::fmt::Write for TtyHandle {
+    fn write_str(&mut self, buf: &str) -> Result<(), core::fmt::Error> {
+        self.0.write(buf.as_bytes());
 
         Ok(())
     }
 }
+
 
 

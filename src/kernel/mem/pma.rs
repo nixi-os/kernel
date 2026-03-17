@@ -35,7 +35,7 @@ impl PhysicalMemoryAllocator {
     /// Create a new physical memory allocator
     pub const fn new() -> PhysicalMemoryAllocator {
         PhysicalMemoryAllocator {
-            bitmap: [0u128; 2048],
+            bitmap: [u128::MAX; 2048],
         }
     }
 
@@ -44,7 +44,7 @@ impl PhysicalMemoryAllocator {
         log!("initializing pma with {} mmap entries", mmap.len());
 
         for descriptor in mmap.entries() {
-            if descriptor.ty == MemoryType::CONVENTIONAL {
+            if descriptor.ty == MemoryType::CONVENTIONAL && descriptor.phys_start > 0 {
                 let base = descriptor.phys_start as usize / 4096;
 
                 for frame in 0..descriptor.page_count {
@@ -95,11 +95,7 @@ impl PhysicalMemoryAllocator {
 
 unsafe impl FrameAllocator<Size4KiB> for PhysicalMemoryAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-        log!("try allocating frame");
-
         let frame = self.alloc(1);
-
-        log!("allocated frame: {:x?}", frame);
 
         Some(PhysFrame::containing_address(PhysAddr::new(frame as u64)))
     }

@@ -1,47 +1,28 @@
 use crate::kernel::drivers::tty::Tty;
+use crate::kernel::drivers::serial::SERIAL;
 
-use x86_64::instructions::interrupts;
-use x86::io;
-
+use alloc::vec::Vec;
 
 /// A serial port tty. It acts as a passthrough layer, forwarding data directly to the serial port.
-pub struct Serial {
-    port: u16,
+pub struct SerialTty {
+    stdin: Vec<u8>,
 }
 
-impl Serial {
-    pub fn new(port: u16) -> Serial {
-        unsafe {
-            io::outb(port + 1, 0x00);
-            io::outb(port + 3, 0x80);
-            io::outb(port, 0x03);
-            io::outb(port + 1, 0x00);
-            io::outb(port + 3, 0x03);
-            io::outb(port + 2, 0xc7);
-            io::outb(port + 4, 0x0b);
-            io::outb(port + 4, 0x0f);
-
-            // enable Recieved Data Available interrupt
-            io::outb(port + 1, 0x01);
-        }
-
-        Serial {
-            port,
+impl SerialTty {
+    pub fn new() -> SerialTty {
+        SerialTty {
+            stdin: Vec::new(),
         }
     }
 }
 
-impl Tty for Serial {
+impl Tty for SerialTty {
     fn write(&mut self, buf: &[u8]) {
-        interrupts::without_interrupts(|| {
-            for byte in buf {
-                unsafe {
-                    while io::inb(self.port + 5) & 0x20 == 0 {}
+        SERIAL.lock().write(buf);
+    }
 
-                    io::outb(self.port, *byte);
-                }
-            }
-        });
+    fn read(&mut self) -> Vec<u8> {
+        self.stdin.drain(..).collect()
     }
 }
 
