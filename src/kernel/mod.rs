@@ -4,12 +4,12 @@ pub mod irq;
 
 use crate::helpers::*;
 
-use drivers::tty::pool;
+use drivers::tty;
 
 pub fn entry() -> ! {
-    pool::init();
+    tty::init();
 
-    log!("test tty pool");
+    log!("test tty");
 
     loop {}
 }

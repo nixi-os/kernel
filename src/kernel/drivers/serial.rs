@@ -1,5 +1,7 @@
 //! A serial port driver
 
+use crate::kernel::drivers::tty::TtyProvider;
+
 use x86_64::instructions::interrupts;
 use x86::io;
 
@@ -55,6 +57,19 @@ impl core::fmt::Write for Serial {
         self.write(buf.as_bytes());
 
         Ok(())
+    }
+}
+
+/// A serial port tty provider. It acts as a passthrough layer, forwarding data directly to the serial port.
+pub struct SerialTty;
+
+impl SerialTty {
+    pub fn new() -> SerialTty { SerialTty }
+}
+
+impl TtyProvider for SerialTty {
+    fn write(&mut self, buf: &[u8]) {
+        SERIAL.lock().write(buf);
     }
 }
 

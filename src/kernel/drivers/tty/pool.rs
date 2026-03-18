@@ -1,29 +1,31 @@
-use crate::kernel::drivers::tty::serial::SerialTty;
 use crate::kernel::drivers::tty::TtyHandle;
-
 use crate::helpers::*;
 
-use spin::{Mutex, Once};
+use spin::{Mutex, MutexGuard, Once};
 
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 /// Global tty pool
-pub static POOL: Once<Mutex<TtyPool>> = Once::new();
+static POOL: Once<Mutex<TtyPool>> = Once::new();
 
 #[inline]
 pub fn init() {
-    log!("switching to tty");
+    log!("initializing tty pool");
 
-    let mutex = POOL.call_once(|| Mutex::new(TtyPool::new()));
-
-    let mut pool = mutex.lock();
-
-    let id = pool.create(TtyHandle::new(Box::new(SerialTty::new())));
-
-    pool.switch(id);
+    POOL.call_once(|| Mutex::new(TtyPool::new()));
 }
 
+#[inline]
+pub fn lock() -> MutexGuard<'static, TtyPool> {
+    POOL.wait().lock()
+}
+
+#[inline]
+pub fn get() -> Option<MutexGuard<'static, TtyPool>> {
+    POOL.get().map(|mutex| mutex.lock())
+}
+
+/// A pool of active tty sessions
 pub struct TtyPool {
     handles: Vec<TtyHandle>,
     current: Option<usize>,
@@ -45,6 +47,13 @@ impl TtyPool {
 
     pub fn switch(&mut self, index: usize) {
         self.current = Some(index);
+    }
+
+    /// Push a byte to the stdin queue of the current tty
+    pub fn push(&mut self, byte: u8) {
+        if let Some(current) = self.current {
+            self.handles[current].push(byte);
+        }
     }
 }
 

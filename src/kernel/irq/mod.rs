@@ -1,5 +1,7 @@
 mod pic8259;
 
+use crate::kernel::drivers::tty::pool;
+
 use crate::helpers::*;
 
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
@@ -43,14 +45,11 @@ extern "x86-interrupt" fn page_fault(stack_frame: InterruptStackFrame, error_cod
     loop {}
 }
 
-// TODO: we must design an interface so that we can pass this input to the tty,
-// preferably we want the interface to be flexible so that it can also be implemented for other
-// input types later on
 extern "x86-interrupt" fn com1_interrupt(_stack_frame: InterruptStackFrame) {
     unsafe {
         let byte = x86::io::inb(0x3f8);
 
-        log!("got keyboard press: {}", byte as char);
+        pool::lock().push(byte);
 
         pic8259::end_of_interrupt(36);
     }
