@@ -4,6 +4,7 @@ mod error;
 
 use crate::kernel::mem::pma;
 use crate::kernel::irq;
+use crate::kernel::cpu;
 use crate::kernel;
 
 use error::BootError;
@@ -27,6 +28,8 @@ pub fn boot() -> Result<(), BootError> {
     match acpi {
         Some(acpi) => {
             let mmap = unsafe { boot::exit_boot_services(None) };
+
+            cpu::enable_fsgsbase();
 
             irq::init();
 

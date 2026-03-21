@@ -50,7 +50,7 @@ pub fn mask(mask: u16) {
 }
 
 /// Notify end of interrupt
-pub fn end_of_interrupt(irq: u8) {
+pub extern "C" fn end_of_interrupt(irq: u8) {
     unsafe {
         if irq > 8 {
             io::outb(SLAVE, 0b0010_0000);

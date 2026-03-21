@@ -1,4 +1,5 @@
 #![feature(ptr_as_ref_unchecked)]
+#![feature(naked_functions_rustic_abi)]
 #![feature(abi_x86_interrupt)]
 
 #![no_main]

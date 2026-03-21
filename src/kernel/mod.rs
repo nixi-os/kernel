@@ -1,6 +1,8 @@
 pub mod drivers;
 pub mod mem;
 pub mod irq;
+pub mod scheduler;
+pub mod cpu;
 
 use crate::helpers::*;
 
