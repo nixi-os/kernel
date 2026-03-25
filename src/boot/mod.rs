@@ -7,15 +7,25 @@ use crate::kernel::irq;
 use crate::kernel::cpu;
 use crate::kernel;
 
+use crate::helpers::*;
+
 use error::BootError;
 
 use uefi::table::cfg::ConfigTableEntry;
+use uefi::proto::loaded_image::LoadedImage;
 use uefi::prelude::*;
 
 
 /// Exit boot services, initialize all subsystems and jump to kernel entry
 pub fn boot() -> Result<(), BootError> {
     let mut acpi: Option<*const core::ffi::c_void> = None;
+
+    let handle = boot::image_handle();
+    let image = boot::open_protocol_exclusive::<LoadedImage>(handle)?;
+
+    let (base, _) = image.info();
+
+    log!("kernel loaded at: {:#x?}", base);
 
     system::with_config_table(|table| {
         for entry in table {
@@ -30,6 +40,7 @@ pub fn boot() -> Result<(), BootError> {
             let mmap = unsafe { boot::exit_boot_services(None) };
 
             cpu::enable_fsgsbase();
+            cpu::enable_xsave();
 
             irq::init();
 

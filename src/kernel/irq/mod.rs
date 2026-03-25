@@ -1,4 +1,4 @@
-mod pic8259;
+pub mod pic8259;
 
 use crate::kernel::drivers::tty::pool;
 use crate::kernel::scheduler;
@@ -37,7 +37,7 @@ pub fn init() {
 
     pic8259::init(32);
 
-    pic8259::mask(0b1111_1111_1110_1110);
+    pic8259::mask(0b1111_1111_1110_1111);
 
     interrupts::enable();
 }
@@ -57,6 +57,7 @@ extern "x86-interrupt" fn page_fault(stack_frame: InterruptStackFrame, error_cod
 #[unsafe(naked)]
 fn timer_interrupt() {
     naked_asm!(
+        // save general purpose registers
         "push rax",
         "push rbx",
         "push rcx",
@@ -73,22 +74,27 @@ fn timer_interrupt() {
         "push r14",
         "push r15",
 
+        // save FS/GS
         "rdgsbase rax",
         "push rax",
         "rdfsbase rax",
         "push rax",
 
+        // call switch
         "mov rcx, rsp",
         "call {}",
 
+        // call end_of_interrupt
         "mov cl, 32",
         "call {}",
 
+        // restore FS/GS
         "pop rax",
         "wrfsbase rax",
         "pop rax",
         "wrgsbase rax",
 
+        // restore general purpose registers
         "pop r15",
         "pop r14",
         "pop r13",
@@ -112,15 +118,11 @@ fn timer_interrupt() {
 
 extern "x86-interrupt" fn com1_interrupt(_stack_frame: InterruptStackFrame) {
     unsafe {
-        interrupts::disable();
-
         let byte = x86::io::inb(0x3f8);
 
         pool::lock().push(byte);
 
         pic8259::end_of_interrupt(36);
-
-        interrupts::enable();
     }
 }
 

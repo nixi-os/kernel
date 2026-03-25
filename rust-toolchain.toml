@@ -1,2 +1,2 @@
 [toolchain]
-targets = ["x86_64-unknown-uefi"]
+targets = ["targets/x86_64-unknown-uefi-kernel.json"]

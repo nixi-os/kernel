@@ -4,7 +4,6 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::cell::RefCell;
 use core::mem;
 
-
 #[global_allocator]
 static ALLOCATOR: Allocator = Allocator::new();
 

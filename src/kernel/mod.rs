@@ -8,8 +8,29 @@ use crate::helpers::*;
 
 use drivers::tty;
 
+#[inline(never)]
+fn example_fn(i: usize) -> bool {
+    if i > 2048 {
+        i % 32 == 0
+    } else {
+        i % 128 == 0
+    }
+}
+
+fn task1() -> ! {
+    loop {
+        for i in 0..4096 {
+            if example_fn(i) {
+                log!("hello from task1");
+            }
+        }
+    }
+}
+
 pub fn entry() -> ! {
     tty::init();
+
+    scheduler::init(task1);
 
     log!("test tty");
 
