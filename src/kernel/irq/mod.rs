@@ -42,6 +42,11 @@ pub fn init() {
     interrupts::enable();
 }
 
+#[inline(always)]
+pub fn enable_timer() {
+    pic8259::mask(0b1111_1111_1110_1110);
+}
+
 extern "x86-interrupt" fn double_fault(stack_frame: InterruptStackFrame, error_code: u64) -> ! {
     error!("double fault:\n{:#x?}\nerror code: {}", stack_frame, error_code);
 

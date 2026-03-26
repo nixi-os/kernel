@@ -44,7 +44,7 @@ pub fn enable_xsave() {
 /// The size (in bytes) required by the XSAVE instruction for an XSAVE area containing all the user state components supported by this processor
 #[inline(always)]
 pub fn required_xsave_size() -> u32 {
-    cpuid!(0, 0).ecx
+    cpuid!(13, 0).ebx
 }
 
 

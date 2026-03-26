@@ -1,7 +1,6 @@
 pub mod proc;
 
-use crate::kernel::irq::pic8259;
-use crate::kernel::cpu;
+use crate::kernel::{cpu, irq};
 use crate::helpers::*;
 
 use proc::ProcId;
@@ -19,28 +18,25 @@ static TASKS: Lazy<Mutex<Option<TaskTable>>> = Lazy::new(|| Mutex::new(None));
 /// A task id
 pub type TaskId = usize;
 
-pub fn init(init: fn() -> !) {
-    let layout = Layout::from_size_align(4096, 8).expect("stack layout should never be invalid");
-    let stack = unsafe { alloc::alloc::alloc_zeroed(layout) };
+/// Initialize scheduler and turn current thread into a task
+pub fn init() {
+    log!("initializing scheduler");
 
     let task = Task::new(0, Context {
         segments: Segments::default(),
         general: GeneralPurpose::default(),
         stack_frame: StackFrame {
-            rip: init as u64,
+            rip: 0,
             cs: 0,
             rflags: 0,
-            rsp: stack as u64,
+            rsp: 0,
             ss: 0,
         },
     });
 
     TASKS.lock().replace(TaskTable::new(task));
 
-    // TODO: we dont want it to save context on the very first context switch, this is because the
-    // first time it does a context switch it will switch from the kernel entry into whatever task is first
-
-    pic8259::mask(0b1111_1111_1110_1110);
+    irq::enable_timer();
 }
 
 #[inline(never)]

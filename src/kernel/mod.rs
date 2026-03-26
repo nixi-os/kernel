@@ -30,9 +30,15 @@ fn task1() -> ! {
 pub fn entry() -> ! {
     tty::init();
 
-    scheduler::init(task1);
+    scheduler::init();
 
-    log!("test tty");
+    // TODO: when we have a file system we should load an init process from the file system here.
+    //
+    // the init process should preferably kill the kernel task once its ready, this is because
+    // there is no reason for the kernel to sit and busy loop doing nothing, while eating cpu time
+    // which could have been used by other tasks.
+
+    log!("the kernel is now running as a task");
 
     loop {}
 }
