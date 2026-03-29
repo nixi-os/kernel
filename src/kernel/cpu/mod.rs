@@ -1,11 +1,12 @@
 //! cpu functionality
 
+pub mod tables;
+
 use crate::helpers::*;
 
 use x86::cpuid::cpuid;
 use x86_64::registers::control::{Cr4, Cr4Flags};
 use x86_64::registers::xcontrol::{XCr0, XCr0Flags};
-
 
 /// Enable FSGSBASE to use efficent instructions to access FS/GS registers
 #[inline]

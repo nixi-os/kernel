@@ -22,17 +22,7 @@ pub type TaskId = usize;
 pub fn init() {
     log!("initializing scheduler");
 
-    let task = Task::new(0, Context {
-        segments: Segments::default(),
-        general: GeneralPurpose::default(),
-        stack_frame: StackFrame {
-            rip: 0,
-            cs: 0,
-            rflags: 0,
-            rsp: 0,
-            ss: 0,
-        },
-    });
+    let task = Task::new(TaskOwner::Kernel, Context::default());
 
     TASKS.lock().replace(TaskTable::new(task));
 
@@ -88,20 +78,26 @@ impl TaskTable {
     }
 }
 
+/// A task can be owned by a userspace process or the kernel
+pub enum TaskOwner {
+    Proc(ProcId),
+    Kernel,
+}
+
 /// A task which will be run by the scheduler on interval
 pub struct Task {
-    proc: ProcId,
+    owner: TaskOwner,
     ctx: Context,
     xsave: *mut u8,
 }
 
 impl Task {
-    pub fn new(proc: ProcId, ctx: Context) -> Task {
+    pub fn new(owner: TaskOwner, ctx: Context) -> Task {
         let layout = Layout::from_size_align(cpu::required_xsave_size() as usize, 64).expect("xsave allocation shouldn't break alignment rules");
         let xsave = unsafe { alloc::alloc::alloc_zeroed(layout) };
 
         Task {
-            proc,
+            owner,
             ctx,
             xsave,
         }
@@ -142,7 +138,7 @@ pub struct GeneralPurpose {
 
 /// The stack frame
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct StackFrame {
     pub rip: u64,
     pub cs: u64,
@@ -153,7 +149,7 @@ pub struct StackFrame {
 
 /// Saved context of a task
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct Context {
     pub segments: Segments,
     pub general: GeneralPurpose,
