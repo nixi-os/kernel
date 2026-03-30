@@ -19,13 +19,20 @@ impl DescriptorFlags {
     const EXECUTE: u64 = 1 << 43;
 }
 
-/// A builder for a segment descriptor as defined in figure 3-8. of the Intel® 64 and IA-32 Architectures Software Developer’s Manual, Volume 3
+/// A builder for a segment descriptor as defined in figure 3-8
 #[repr(C)]
 pub struct SegmentDescriptor {
     descriptor: u64,
 }
 
 impl SegmentDescriptor {
+    /// Create a new empty segment descriptor
+    pub const fn new() -> SegmentDescriptor {
+        SegmentDescriptor {
+            descriptor: 0,
+        }
+    }
+
     /// Create a new segment descriptor with default flags for code or data
     pub const fn code_or_data() -> SegmentDescriptor {
         let descriptor = SegmentDescriptor {
@@ -55,6 +62,24 @@ impl SegmentDescriptor {
             descriptor: self.descriptor | ((_type as u64 & 0b111) << 40),
         }
     }
+
+    /// Turn the segment descriptor into a tss descriptor, its still required that the caller
+    /// properly sets type field correctly and enables the present flag
+    pub const fn as_tss_descriptor(self, base: u128) -> TssDescriptor {
+        let low_base = base & 0xffff;
+        let mid_low_base = base & (0xff << 16);
+        let mid_high_base = base & (0xff << 24);
+        let high_base = base & (0xffff_ffff << 32);
+
+        TssDescriptor {
+            descriptor: self.descriptor as u128 | low_base << 16 | mid_low_base << 16 | mid_high_base << 32 | high_base << 32,
+        }
+    }
+}
+
+/// A tss descriptor as defined in figure 10-4
+pub struct TssDescriptor {
+    descriptor: u128,
 }
 
 /// The global descriptor table
@@ -65,19 +90,22 @@ pub struct GlobalDescriptorTable {
     kernel_data: SegmentDescriptor,
     user_data: SegmentDescriptor,
     user_code: SegmentDescriptor,
-    tss: u128,
+    tss: TssDescriptor,
 }
 
 impl GlobalDescriptorTable {
     /// Create a new global descriptor table
-    pub const fn new() -> GlobalDescriptorTable {
+    pub const fn new(tss: u64) -> GlobalDescriptorTable {
         GlobalDescriptorTable {
             null: SegmentDescriptor::code_or_data(),
             kernel_code: SegmentDescriptor::code_or_data().set_flags(DescriptorFlags::EXECUTE),
             kernel_data: SegmentDescriptor::code_or_data(),
             user_data: SegmentDescriptor::code_or_data().set_privilege_level(3),
             user_code: SegmentDescriptor::code_or_data().set_flags(DescriptorFlags::EXECUTE).set_privilege_level(3),
-            tss: 0,
+
+            // NOTE: the tss descriptor is flagged with EXECUTE not because its executable, but
+            // because EXECUTE corresponds to the high bit in the type field, which must be set for the tss descriptor
+            tss: SegmentDescriptor::new().set_flags(DescriptorFlags::PRESENT | DescriptorFlags::EXECUTE).set_type(0b001).as_tss_descriptor(tss as u128),
         }
     }
 }
