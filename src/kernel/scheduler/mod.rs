@@ -26,12 +26,7 @@ pub fn init() {
 
     TASKS.lock().replace(TaskTable::new(task));
 
-    log!("enabling timer");
-
-    // TODO: it hangs here, we have to find out why it may hang when we replace the gdt
     irq::enable_timer();
-
-    log!("timer enabled");
 }
 
 #[inline(never)]
