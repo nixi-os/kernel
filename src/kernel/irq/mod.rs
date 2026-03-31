@@ -19,6 +19,7 @@ lazy_static! {
 
         idt.double_fault.set_handler_fn(double_fault);
         idt.page_fault.set_handler_fn(page_fault);
+        idt.general_protection_fault.set_handler_fn(gp_fault);
 
         unsafe {
             idt[32].set_handler_addr(VirtAddr::new(timer_interrupt as *const () as u64));
@@ -49,6 +50,12 @@ pub fn enable_timer() {
 
 extern "x86-interrupt" fn double_fault(stack_frame: InterruptStackFrame, error_code: u64) -> ! {
     error!("double fault:\n{:#x?}\nerror code: {}", stack_frame, error_code);
+
+    loop {}
+}
+
+extern "x86-interrupt" fn gp_fault(stack_frame: InterruptStackFrame, error_code: u64) {
+    error!("general protection fault:\n{:#x?}\nerror code: {}", stack_frame, error_code);
 
     loop {}
 }

@@ -78,6 +78,7 @@ impl SegmentDescriptor {
 }
 
 /// A tss descriptor as defined in figure 10-4
+#[repr(C)]
 pub struct TssDescriptor {
     descriptor: u128,
 }
@@ -94,18 +95,24 @@ pub struct GlobalDescriptorTable {
 }
 
 impl GlobalDescriptorTable {
-    /// Create a new global descriptor table
-    pub const fn new(tss: u64) -> GlobalDescriptorTable {
+    /// Create a new global descriptor table with an uninitialized tss descriptor
+    pub const fn uninit() -> GlobalDescriptorTable {
         GlobalDescriptorTable {
             null: SegmentDescriptor::code_or_data(),
             kernel_code: SegmentDescriptor::code_or_data().set_flags(DescriptorFlags::EXECUTE),
             kernel_data: SegmentDescriptor::code_or_data(),
             user_data: SegmentDescriptor::code_or_data().set_privilege_level(3),
             user_code: SegmentDescriptor::code_or_data().set_flags(DescriptorFlags::EXECUTE).set_privilege_level(3),
+            tss: TssDescriptor {
+                descriptor: 0,
+            },
+        }
+    }
 
-            // NOTE: the tss descriptor is flagged with EXECUTE not because its executable, but
-            // because EXECUTE corresponds to the high bit in the type field, which must be set for the tss descriptor
-            tss: SegmentDescriptor::new().set_flags(DescriptorFlags::PRESENT | DescriptorFlags::EXECUTE).set_type(0b001).as_tss_descriptor(tss as u128),
+    /// Initialize the global descriptor table with a tss
+    pub fn init_with_tss(self: *mut GlobalDescriptorTable, tss: u64) {
+        unsafe {
+            (*self).tss = SegmentDescriptor::new().set_flags(DescriptorFlags::PRESENT | DescriptorFlags::EXECUTE).set_type(0b001).as_tss_descriptor(tss as u128);
         }
     }
 }

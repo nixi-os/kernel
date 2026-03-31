@@ -1,6 +1,7 @@
 #![feature(ptr_as_ref_unchecked)]
 #![feature(naked_functions_rustic_abi)]
 #![feature(abi_x86_interrupt)]
+#![feature(arbitrary_self_types_pointers)]
 
 #![no_main]
 #![no_std]

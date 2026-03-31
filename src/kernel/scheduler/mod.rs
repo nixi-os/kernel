@@ -26,7 +26,12 @@ pub fn init() {
 
     TASKS.lock().replace(TaskTable::new(task));
 
+    log!("enabling timer");
+
+    // TODO: it hangs here, we have to find out why it may hang when we replace the gdt
     irq::enable_timer();
+
+    log!("timer enabled");
 }
 
 #[inline(never)]
@@ -65,6 +70,8 @@ impl TaskTable {
         let next = if self.current >= self.tasks.len() - 1 { 0 } else { self.current + 1 };
 
         self.tasks[self.current].ctx = ctx;
+
+        // TODO: we must set the kernel stack on each context switch
 
         unsafe {
             core::arch::x86_64::_xsave(self.tasks[self.current].xsave, u64::MAX);

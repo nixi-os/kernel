@@ -2,9 +2,9 @@
 
 mod error;
 
+use crate::kernel::cpu::{self, tables};
 use crate::kernel::mem::pma;
 use crate::kernel::irq;
-use crate::kernel::cpu;
 use crate::kernel;
 
 use crate::helpers::*;
@@ -41,6 +41,8 @@ pub fn boot() -> Result<(), BootError> {
 
             cpu::enable_fsgsbase();
             cpu::enable_xsave();
+
+            tables::init_gdt();
 
             irq::init();
 
