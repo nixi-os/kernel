@@ -1,107 +1,117 @@
-pub mod proc;
+pub mod error;
+pub mod context;
 
-use crate::kernel::{cpu, irq};
-use crate::helpers::*;
+use error::SchedulerError;
+use context::Context;
 
-use proc::ProcId;
+use crate::kernel::cpu;
 
 use spin::{Lazy, Mutex};
 
 use alloc::alloc::Layout;
+use alloc::collections::BTreeMap;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
-use alloc::vec;
 
 
-/// The global task table
-static TASKS: Lazy<Mutex<Option<TaskTable>>> = Lazy::new(|| Mutex::new(None));
+/// The global scheduler
+static SCHEDULER: Lazy<Mutex<Option<Scheduler>>> = Lazy::new(|| Mutex::new(None));
 
-/// A task id
-pub type TaskId = usize;
 
-/// Initialize scheduler and turn current thread into a task
-pub fn init() {
-    log!("initializing scheduler");
-
-    let task = Task::new(TaskOwner::Kernel, Context::default());
-
-    TASKS.lock().replace(TaskTable::new(task));
-
-    irq::enable_timer();
+/// The scheduler manages processes and tasks
+pub struct Scheduler {
+    procs: BTreeMap<usize, Proc>,
+    current: TaskDescriptor,
 }
 
-#[inline(never)]
-#[unsafe(no_mangle)]
-pub extern "C" fn switch(ctx: *mut Context) {
-    let mut guard = TASKS.lock();
-
-    log!("switch context: {:x?}", unsafe { *ctx });
-
-    if let Some(table) = &mut *guard {
-        unsafe {
-            *ctx = table.switch(*ctx);
+impl Scheduler {
+    pub fn new(init: Proc) -> Scheduler {
+        Scheduler {
+            procs: BTreeMap::from_iter([(0, init)]),
+            current: TaskDescriptor::new(0, 0),
         }
-    } else {
-        panic!("task table must be initialized before any context switches can occur");
     }
-}
 
-/// The task table
-pub struct TaskTable {
-    tasks: Vec<Task>,
-    current: TaskId,
-}
+    /// Allocate a new process id
+    fn alloc_pid(&self) -> Result<usize, SchedulerError> {
+        let pid = self.procs.keys()
+            .map_windows(|[pid1, pid2]| (**pid1, **pid2))
+            .find_map(|(pid1, pid2)| (pid2 - pid1 > 1).then_some(pid1 + 1));
 
-impl TaskTable {
-    /// Create a new task table with init task
-    pub fn new(init: Task) -> TaskTable {
-        TaskTable {
-            tasks: vec![init],
-            current: 0,
+        match pid {
+            Some(pid) => Ok(pid),
+            None => self.procs.keys().max().map(|max| max + 1).ok_or(SchedulerError::OutOfPid),
+        }
+    }
+
+    /// Get the next task
+    fn next_task(&self) -> TaskDescriptor {
+        assert!(!self.procs.is_empty());
+
+        if self.current.tid >= self.procs[&self.current.pid].tasks.len() - 1 {
+            let next = self.procs.range(self.current.pid+1..).next();
+            let (pid, _) = next.unwrap_or_else(|| self.procs.first_key_value().expect("procs shouldn't be empty"));
+
+            TaskDescriptor::new(*pid, 0)
+        } else {
+            TaskDescriptor::new(self.current.pid, self.current.tid + 1)
         }
     }
 
     /// Perform a context switch from the current task to the next task
     unsafe fn switch(&mut self, ctx: Context) -> Context {
-        let next = if self.current >= self.tasks.len() - 1 { 0 } else { self.current + 1 };
+        let next = self.next_task();
 
-        self.tasks[self.current].ctx = ctx;
+        self.procs.get_mut(&self.current.pid).expect("current task descriptor should never be invalid").tasks[self.current.tid].ctx = ctx;
 
         // TODO: we must set the kernel stack on each context switch
 
         unsafe {
-            core::arch::x86_64::_xsave(self.tasks[self.current].xsave, u64::MAX);
+            core::arch::x86_64::_xsave(self.procs[&self.current.pid].tasks[self.current.tid].xsave, u64::MAX);
 
-            core::arch::x86_64::_xrstor(self.tasks[next].xsave, u64::MAX);
+            core::arch::x86_64::_xrstor(self.procs[&next.pid].tasks[next.tid].xsave, u64::MAX);
         }
 
         self.current = next;
 
-        self.tasks[next].ctx
+        self.procs[&next.pid].tasks[next.tid].ctx
     }
 }
 
-/// A task can be owned by a userspace process or the kernel
-pub enum TaskOwner {
-    Proc(ProcId),
-    Kernel,
+/// A process, a single process can have multiple tasks
+#[derive(Default)]
+pub struct Proc {
+    tasks: Vec<Task>,
 }
 
 /// A task which will be run by the scheduler on interval
 pub struct Task {
-    owner: TaskOwner,
     ctx: Context,
+    user_stack: Box<[u8; 4096 * 4]>,
+    kernel_stack: Box<[u8; 4096 * 4]>,
     xsave: *mut u8,
 }
 
 impl Task {
-    pub fn new(owner: TaskOwner, ctx: Context) -> Task {
+    /// Create a new task
+    pub fn new() -> Task {
         let layout = Layout::from_size_align(cpu::required_xsave_size() as usize, 64).expect("xsave allocation shouldn't break alignment rules");
         let xsave = unsafe { alloc::alloc::alloc_zeroed(layout) };
 
         Task {
-            owner,
-            ctx,
+            ctx: Context::default(),
+            user_stack: Box::new([0; 4096 * 4]),
+            kernel_stack: Box::new([0; 4096 * 4]),
             xsave,
+        }
+    }
+}
+
+impl Drop for Task {
+    fn drop(&mut self) {
+        unsafe {
+            // NOTE: this uses a bogus layout since our allocator doesnt make use of the layout when deallocating
+            alloc::alloc::dealloc(self.xsave, Layout::from_size_align_unchecked(8, 8));
         }
     }
 }
@@ -109,53 +119,20 @@ impl Task {
 unsafe impl Sync for Task {}
 unsafe impl Send for Task {}
 
-/// Segment registers
-#[repr(C)]
-#[derive(Default, Debug, Clone, Copy)]
-pub struct Segments {
-    pub fs: u64,
-    pub gs: u64,
+/// A task descriptor has the process id and the task id
+#[derive(Clone, Copy)]
+pub struct TaskDescriptor {
+    pid: usize,
+    tid: usize,
 }
 
-/// General purpose registers
-#[repr(C)]
-#[derive(Default, Debug, Clone, Copy)]
-pub struct GeneralPurpose {
-    pub r15: u64,
-    pub r14: u64,
-    pub r13: u64,
-    pub r12: u64,
-    pub r11: u64,
-    pub r10: u64,
-    pub r9: u64,
-    pub r8: u64,
-    pub rbp: u64,
-    pub rdi: u64,
-    pub rsi: u64,
-    pub rdx: u64,
-    pub rcx: u64,
-    pub rbx: u64,
-    pub rax: u64,
-}
-
-/// The stack frame
-#[repr(C)]
-#[derive(Default, Debug, Clone, Copy)]
-pub struct StackFrame {
-    pub rip: u64,
-    pub cs: u64,
-    pub rflags: u64,
-    pub rsp: u64,
-    pub ss: u64,
-}
-
-/// Saved context of a task
-#[repr(C)]
-#[derive(Default, Debug, Clone, Copy)]
-pub struct Context {
-    pub segments: Segments,
-    pub general: GeneralPurpose,
-    pub stack_frame: StackFrame,
+impl TaskDescriptor {
+    pub fn new(pid: usize, tid: usize) -> TaskDescriptor {
+        TaskDescriptor {
+            pid,
+            tid,
+        }
+    }
 }
 
 

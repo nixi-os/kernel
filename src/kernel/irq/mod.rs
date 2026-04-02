@@ -1,7 +1,7 @@
 pub mod pic8259;
 
 use crate::kernel::drivers::tty::pool;
-use crate::kernel::scheduler;
+use crate::kernel::scheduler::context;
 
 use crate::helpers::*;
 
@@ -123,7 +123,7 @@ fn timer_interrupt() {
         "pop rbx",
         "pop rax",
         "iretq",
-        sym scheduler::switch,
+        sym context::switch,
         sym pic8259::end_of_interrupt,
     );
 }

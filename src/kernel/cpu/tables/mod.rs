@@ -13,6 +13,8 @@ use tss::TaskStateSegment;
 use x86_64::structures::DescriptorTablePointer;
 use x86_64::VirtAddr;
 
+use core::arch::asm;
+
 // NOTE: having a single global gdt and tss without a mutex is safe as long as we dont do SMP
 static mut GDT_TSS: GdtTss = GdtTss {
     gdt: GlobalDescriptorTable::uninit(),
@@ -38,8 +40,8 @@ pub fn init_gdt() {
             limit: core::mem::size_of::<GlobalDescriptorTable>() as u16,
         });
 
-        // load CS using far return
-        core::arch::asm!(
+        // load code segment (CS) using far return
+        asm!(
             "push {sel}",
             "lea {tmp}, [2f + rip]",
             "push {tmp}",
@@ -47,11 +49,10 @@ pub fn init_gdt() {
             "2:",
             sel = in(reg) 0x08u64,
             tmp = lateout(reg) _,
-            options(preserves_flags),
         );
 
-        // load all other segment registers
-        core::arch::asm!(
+        // load data segments
+        asm!(
             "mov ds, {sel}",
             "mov es, {sel}",
             "mov fs, {sel}",
