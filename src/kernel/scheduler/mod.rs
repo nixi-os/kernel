@@ -2,7 +2,7 @@ pub mod error;
 pub mod context;
 
 use error::SchedulerError;
-use context::Context;
+use context::{Context, Segments, GeneralPurpose, StackFrame};
 
 use crate::kernel::cpu;
 
@@ -13,23 +13,50 @@ use alloc::collections::BTreeMap;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-
 /// The global scheduler
-static SCHEDULER: Lazy<Mutex<Option<Scheduler>>> = Lazy::new(|| Mutex::new(None));
+static SCHEDULER: Lazy<Mutex<Scheduler>> = Lazy::new(|| Mutex::new(Scheduler::new()));
 
+/// Call a closure with scheduler
+pub fn with_scheduler<F: FnOnce(&mut Scheduler) -> R, R>(f: F) -> R {
+    let mut scheduler = SCHEDULER.lock();
+
+    f(&mut scheduler)
+}
 
 /// The scheduler manages processes and tasks
 pub struct Scheduler {
-    procs: BTreeMap<usize, Proc>,
-    current: TaskDescriptor,
+    pub procs: BTreeMap<usize, Proc>,
+    pub current: Option<TaskDescriptor>,
 }
 
 impl Scheduler {
-    pub fn new(init: Proc) -> Scheduler {
+    /// Create a new scheduler
+    pub fn new() -> Scheduler {
         Scheduler {
-            procs: BTreeMap::from_iter([(0, init)]),
-            current: TaskDescriptor::new(0, 0),
+            procs: BTreeMap::new(),
+            current: None,
         }
+    }
+
+    /// Create a new process and return process id
+    pub fn create_proc(&mut self) -> Result<usize, SchedulerError> {
+        let pid = self.alloc_pid()?;
+
+        self.procs.insert(pid, Proc::new());
+
+        Ok(pid)
+    }
+
+    /// Create a new task for a process with an entry point and return task id
+    pub fn create_task(&mut self, pid: usize, entry: u64, privilege_level: u8) -> Result<usize, SchedulerError> {
+        let proc = self.procs.get_mut(&pid).ok_or(SchedulerError::NoSuchPid)?;
+
+        Ok(proc.create_task(entry, privilege_level))
+    }
+
+    /// Lookup a task from its task descriptor
+    pub fn lookup_task<'a>(&'a self, task: TaskDescriptor) -> &'a Task {
+        &self.procs[&task.pid].tasks[task.tid]
     }
 
     /// Allocate a new process id
@@ -40,48 +67,71 @@ impl Scheduler {
 
         match pid {
             Some(pid) => Ok(pid),
-            None => self.procs.keys().max().map(|max| max + 1).ok_or(SchedulerError::OutOfPid),
+            None => {
+                if let Some(max) = self.procs.keys().max() {
+                    max.checked_add(1).ok_or(SchedulerError::OutOfPid)
+                } else {
+                    Ok(0)
+                }
+            },
         }
     }
 
-    /// Get the next task
-    fn next_task(&self) -> TaskDescriptor {
+    /// Get the current and next task
+    fn schedule_task(&self) -> (TaskDescriptor, TaskDescriptor) {
         assert!(!self.procs.is_empty());
 
-        if self.current.tid >= self.procs[&self.current.pid].tasks.len() - 1 {
-            let next = self.procs.range(self.current.pid+1..).next();
+        let current = self.current.expect("scheduling can never occur before the current task is initialized");
+
+        if current.tid >= self.procs[&current.pid].tasks.len() - 1 {
+            let next = self.procs.range(current.pid+1..).next();
             let (pid, _) = next.unwrap_or_else(|| self.procs.first_key_value().expect("procs shouldn't be empty"));
 
-            TaskDescriptor::new(*pid, 0)
+            (current, TaskDescriptor::new(*pid, 0))
         } else {
-            TaskDescriptor::new(self.current.pid, self.current.tid + 1)
+            (current, TaskDescriptor::new(current.pid, current.tid + 1))
         }
     }
 
     /// Perform a context switch from the current task to the next task
     unsafe fn switch(&mut self, ctx: Context) -> Context {
-        let next = self.next_task();
+        let (current, next) = self.schedule_task();
 
-        self.procs.get_mut(&self.current.pid).expect("current task descriptor should never be invalid").tasks[self.current.tid].ctx = ctx;
+        self.procs.get_mut(&current.pid).expect("current task descriptor should never be invalid").tasks[current.tid].ctx = ctx;
 
         // TODO: we must set the kernel stack on each context switch
 
         unsafe {
-            core::arch::x86_64::_xsave(self.procs[&self.current.pid].tasks[self.current.tid].xsave, u64::MAX);
+            core::arch::x86_64::_xsave(self.procs[&current.pid].tasks[current.tid].xsave, u64::MAX);
 
             core::arch::x86_64::_xrstor(self.procs[&next.pid].tasks[next.tid].xsave, u64::MAX);
         }
 
-        self.current = next;
+        self.current = Some(next);
 
         self.procs[&next.pid].tasks[next.tid].ctx
     }
 }
 
 /// A process, a single process can have multiple tasks
-#[derive(Default)]
 pub struct Proc {
     tasks: Vec<Task>,
+}
+
+impl Proc {
+    /// Create a new process
+    pub fn new() -> Proc {
+        Proc {
+            tasks: Vec::new(),
+        }
+    }
+
+    /// Create a new task and return the task id
+    pub fn create_task(&mut self, entry: u64, privilege_level: u8) -> usize {
+        self.tasks.push(Task::new(entry, privilege_level));
+
+        self.tasks.len() - 1
+    }
 }
 
 /// A task which will be run by the scheduler on interval
@@ -93,14 +143,26 @@ pub struct Task {
 }
 
 impl Task {
-    /// Create a new task
-    pub fn new() -> Task {
+    /// Create a new task with an entry point and privilege level
+    pub fn new(entry: u64, privilege_level: u8) -> Task {
         let layout = Layout::from_size_align(cpu::required_xsave_size() as usize, 64).expect("xsave allocation shouldn't break alignment rules");
         let xsave = unsafe { alloc::alloc::alloc_zeroed(layout) };
 
+        let user_stack = Box::new([0; 4096 * 4]);
+
         Task {
-            ctx: Context::default(),
-            user_stack: Box::new([0; 4096 * 4]),
+            ctx: Context {
+                segments: Segments::default(),
+                general: GeneralPurpose::default(),
+                stack_frame: StackFrame {
+                    rip: entry,
+                    cs: 0x20 | (privilege_level as u64 & 3),
+                    rflags: 1 | (1 << 9),
+                    rsp: user_stack.as_ptr() as u64 + user_stack.len() as u64,
+                    ss: 0x18 | (privilege_level as u64 & 3),
+                },
+            },
+            user_stack,
             kernel_stack: Box::new([0; 4096 * 4]),
             xsave,
         }

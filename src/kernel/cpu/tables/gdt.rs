@@ -1,5 +1,6 @@
 //! An implementation of the global descriptor table
 
+use crate::kernel::cpu::tables::tss::TaskStateSegment;
 
 /// Common flags for segment descriptors
 pub struct DescriptorFlags;
@@ -20,7 +21,7 @@ impl DescriptorFlags {
 }
 
 /// A builder for a segment descriptor as defined in figure 3-8
-#[repr(C)]
+#[repr(C, packed)]
 pub struct SegmentDescriptor {
     descriptor: u64,
 }
@@ -65,20 +66,31 @@ impl SegmentDescriptor {
 
     /// Turn the segment descriptor into a tss descriptor, its still required that the caller
     /// properly sets type field correctly and enables the present flag
-    pub const fn as_tss_descriptor(self, base: u128) -> TssDescriptor {
+    pub fn as_tss_descriptor(self, base: u128) -> TssDescriptor {
+        let limit = (core::mem::size_of::<TaskStateSegment>() - 1) as u128;
+
+        let low_limit = limit & 0xffff;
+        let high_limit = limit & (0xf << 16);
+
         let low_base = base & 0xffff;
         let mid_low_base = base & (0xff << 16);
         let mid_high_base = base & (0xff << 24);
         let high_base = base & (0xffff_ffff << 32);
 
         TssDescriptor {
-            descriptor: self.descriptor as u128 | low_base << 16 | mid_low_base << 16 | mid_high_base << 32 | high_base << 32,
+            descriptor: self.descriptor as u128
+                | low_base << 16
+                | mid_low_base << 16
+                | mid_high_base << 32
+                | high_base << 32
+                | low_limit
+                | high_limit << 32,
         }
     }
 }
 
 /// A tss descriptor as defined in figure 10-4
-#[repr(C)]
+#[repr(C, packed)]
 pub struct TssDescriptor {
     descriptor: u128,
 }

@@ -2,10 +2,14 @@
 
 use super::SCHEDULER;
 
+use crate::kernel::cpu::tables;
+use crate::kernel::scheduler;
 use crate::kernel::irq;
 use crate::helpers::*;
 
 use x86_64::instructions::interrupts;
+
+use core::arch::asm;
 
 
 /// Segment registers
@@ -57,37 +61,52 @@ pub struct Context {
     pub stack_frame: StackFrame,
 }
 
-/// Initialize scheduler and enter usermode with init process
-pub fn enter_user() -> ! {
-    log!("initializing scheduler");
+/// Enter usermode, the scheduler will panic if it has no tasks when this is called
+pub fn enter_usermode() -> ! {
+    log!("enter usermode");
 
-    // TODO: in the future the will be no Task::new method, tasks should only be possible to be
-    // made through a process
-    // let task = Task::new(0, Context::default());
+    let (stack_frame, kernel_stack) = scheduler::with_scheduler(|scheduler| {
+        let (current, _) = scheduler.schedule_task();
 
-    // TASKS.lock().replace(TaskTable::new(task));
+        let task = scheduler.lookup_task(current);
+
+        (task.ctx.stack_frame, unsafe { task.kernel_stack.as_ptr().add(task.kernel_stack.len()) })
+    });
 
     interrupts::disable();
 
     irq::enable_timer();
 
-    loop {}
+    tables::set_kernel_stack(kernel_stack);
+
+    unsafe {
+        asm!(
+            "push {ss}",
+            "push {rsp}",
+            "push {rflags}",
+            "push {cs}",
+            "push {rip}",
+            "iretq",
+            ss = in(reg) stack_frame.ss,
+            rsp = in(reg) stack_frame.rsp,
+            rflags = in(reg) stack_frame.rflags,
+            cs = in(reg) stack_frame.cs,
+            rip = in(reg) stack_frame.rip,
+            options(noreturn),
+        );
+    }
 }
 
 /// Switch is called directly from assembly in the interrupt handler
 #[inline(never)]
 #[unsafe(no_mangle)]
 pub extern "C" fn switch(ctx: *mut Context) {
-    let mut guard = SCHEDULER.lock();
+    let mut scheduler = SCHEDULER.lock();
 
     log!("switch context: {:x?}", unsafe { *ctx });
 
-    if let Some(scheduler) = &mut *guard {
-        unsafe {
-            *ctx = scheduler.switch(*ctx);
-        }
-    } else {
-        panic!("task table must be initialized before any context switches can occur");
+    unsafe {
+        *ctx = scheduler.switch(*ctx);
     }
 }
 

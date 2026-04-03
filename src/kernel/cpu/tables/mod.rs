@@ -60,6 +60,12 @@ pub fn init_gdt() {
             "mov ss, {sel}",
             sel = in(reg) 0x10u64,
         );
+
+        // load tss
+        asm!(
+            "ltr {sel:x}",
+            sel = in(reg) 0x28u64,
+        );
     }
 }
 

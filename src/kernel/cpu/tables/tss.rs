@@ -6,12 +6,12 @@
 
 
 /// The task state segment contains RSP0-2, IST1-7 and the I/O Map Base Address
-#[repr(C)]
+#[repr(C, packed)]
 pub struct TaskStateSegment {
     _reserved1: u32,
     rsp: [u64; 3],
     _reserved2: u64,
-    ist: [u64; 6],
+    ist: [u64; 7],
     _reserved3: u64,
     _reserved4: u16,
     io_map: u16,
@@ -24,7 +24,7 @@ impl TaskStateSegment {
             _reserved1: 0,
             rsp: [0; 3],
             _reserved2: 0,
-            ist: [0; 6],
+            ist: [0; 7],
             _reserved3: 0,
             _reserved4: 0,
             io_map: core::mem::size_of::<TaskStateSegment>() as u16,
