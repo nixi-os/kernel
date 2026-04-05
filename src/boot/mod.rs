@@ -42,7 +42,7 @@ pub fn boot() -> Result<(), BootError> {
             cpu::enable_fsgsbase();
             cpu::enable_xsave();
 
-            tables::init_gdt();
+            tables::init();
 
             irq::init();
 

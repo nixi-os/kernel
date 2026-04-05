@@ -5,6 +5,8 @@ use crate::kernel::cpu::tables::tss::TaskStateSegment;
 /// Common flags for segment descriptors
 pub struct DescriptorFlags;
 
+// TODO: maybe descriptor flags should be shared between the gdt and the idt since alot of the
+// layout of between descriptors in the idt and the gdt is similar and have the same offsets
 impl DescriptorFlags {
     /// The LONG_MODE flag determines whether a code segment contains 64-bit code
     const LONG_MODE: u64 = 1 << 53;
@@ -79,12 +81,12 @@ impl SegmentDescriptor {
 
         TssDescriptor {
             descriptor: self.descriptor as u128
-                | low_base << 16
-                | mid_low_base << 16
-                | mid_high_base << 32
-                | high_base << 32
+                | (low_base << 16)
+                | (mid_low_base << 16)
+                | (mid_high_base << 32)
+                | (high_base << 32)
                 | low_limit
-                | high_limit << 32,
+                | (high_limit << 32),
         }
     }
 }

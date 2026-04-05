@@ -7,6 +7,7 @@ pub mod tss;
 
 use crate::helpers::*;
 
+use idt::InterruptDescriptorTable;
 use gdt::GlobalDescriptorTable;
 use tss::TaskStateSegment;
 
@@ -16,27 +17,32 @@ use x86_64::VirtAddr;
 use core::arch::asm;
 
 // NOTE: having a single global gdt and tss without a mutex is safe as long as we dont do SMP
-static mut GDT_TSS: GdtTss = GdtTss {
+static mut TABLES: Tables = Tables {
+    idt: InterruptDescriptorTable::uninit(),
     gdt: GlobalDescriptorTable::uninit(),
     tss: TaskStateSegment::uninit(),
 };
 
-/// A shared structure for the global descriptor table and the task state segment
+/// A shared structure for the global descriptor table, the task state segment and the interrupt
+/// descriptor table
 #[repr(C)]
-struct GdtTss {
+struct Tables {
+    idt: InterruptDescriptorTable,
     gdt: GlobalDescriptorTable,
     tss: TaskStateSegment,
 }
 
-/// Initialize the global descriptor table
-pub fn init_gdt() {
+/// Initialize the tables
+pub fn init() {
     unsafe {
-        log!("initializing global descriptor table at: {:#x?}", &raw const GDT_TSS.gdt);
+        log!("idt: {:#x?}", &raw const TABLES.idt);
+        log!("gdt: {:#x?}", &raw const TABLES.gdt);
+        log!("tss: {:#x?}", &raw const TABLES.tss);
 
-        (&raw mut GDT_TSS.gdt).init_with_tss(&raw const GDT_TSS.tss as u64);
+        (&raw mut TABLES.gdt).init_with_tss(&raw const TABLES.tss as u64);
 
         x86_64::instructions::tables::lgdt(&DescriptorTablePointer {
-            base: VirtAddr::from_ptr(&raw const GDT_TSS.gdt),
+            base: VirtAddr::from_ptr(&raw const TABLES.gdt),
             limit: core::mem::size_of::<GlobalDescriptorTable>() as u16,
         });
 
@@ -66,13 +72,20 @@ pub fn init_gdt() {
             "ltr {sel:x}",
             sel = in(reg) 0x28u64,
         );
+
+        (&raw mut TABLES.idt).init();
+
+        x86_64::instructions::tables::lidt(&DescriptorTablePointer {
+            base: VirtAddr::from_ptr(&raw const TABLES.idt),
+            limit: core::mem::size_of::<InterruptDescriptorTable>() as u16,
+        });
     }
 }
 
 /// Set the kernel stack (rsp0) in the task state segment
 pub fn set_kernel_stack(stack: *const u8) {
     unsafe {
-        (&raw mut GDT_TSS.tss).set_rsp0(stack as u64);
+        (&raw mut TABLES.tss).set_rsp0(stack as u64);
     }
 }
 
