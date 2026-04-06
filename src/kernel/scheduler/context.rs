@@ -2,18 +2,17 @@
 
 use super::SCHEDULER;
 
-use crate::kernel::cpu::tables;
+use crate::kernel::arch::x86_64::interrupt::{self, StackFrame};
+use crate::kernel::arch::x86_64::tables;
 use crate::kernel::scheduler;
 use crate::kernel::irq;
 use crate::helpers::*;
-
-use x86_64::instructions::interrupts;
 
 use core::arch::asm;
 
 
 /// Segment registers
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Segments {
     pub fs: u64,
@@ -21,7 +20,7 @@ pub struct Segments {
 }
 
 /// General purpose registers
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Default, Debug, Clone, Copy)]
 pub struct GeneralPurpose {
     pub r15: u64,
@@ -39,17 +38,6 @@ pub struct GeneralPurpose {
     pub rcx: u64,
     pub rbx: u64,
     pub rax: u64,
-}
-
-/// The stack frame
-#[repr(C)]
-#[derive(Default, Debug, Clone, Copy)]
-pub struct StackFrame {
-    pub rip: u64,
-    pub cs: u64,
-    pub rflags: u64,
-    pub rsp: u64,
-    pub ss: u64,
 }
 
 /// Saved context of a task
@@ -73,7 +61,7 @@ pub fn enter_usermode() -> ! {
         (task.ctx.stack_frame, unsafe { task.kernel_stack.as_ptr().add(task.kernel_stack.len()) })
     });
 
-    interrupts::disable();
+    interrupt::clear_interrupt_flag();
 
     irq::enable_timer();
 

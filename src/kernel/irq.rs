@@ -1,12 +1,9 @@
-pub mod pic8259;
-
+use crate::kernel::drivers::pic8259;
 use crate::kernel::drivers::tty::pool;
 use crate::kernel::scheduler::context;
+use crate::kernel::arch::x86_64::interrupt::{StackFrame, PageFaultErrorCode};
 
 use crate::helpers::*;
-
-use x86_64::structures::idt::{InterruptStackFrame, PageFaultErrorCode};
-use x86_64::instructions::interrupts;
 
 use core::arch::naked_asm;
 
@@ -17,8 +14,6 @@ pub fn init() {
     pic8259::init(32);
 
     pic8259::mask(0b1111_1111_1110_1111);
-
-    interrupts::enable();
 }
 
 #[inline(always)]
@@ -26,20 +21,20 @@ pub fn enable_timer() {
     pic8259::mask(0b1111_1111_1110_1110);
 }
 
-pub extern "x86-interrupt" fn double_fault(stack_frame: InterruptStackFrame, error_code: u64) -> ! {
-    error!("double fault:\n{:#x?}\nerror code: {}", stack_frame, error_code);
+pub extern "x86-interrupt" fn double_fault(stack_frame: StackFrame, error_code: u64) -> ! {
+    error!("double fault:\n{:#x?}\nerror code: {:#x?}", stack_frame, error_code);
 
     loop {}
 }
 
-pub extern "x86-interrupt" fn gp_fault(stack_frame: InterruptStackFrame, error_code: u64) {
-    error!("general protection fault:\n{:#x?}\nerror code: {}", stack_frame, error_code);
+pub extern "x86-interrupt" fn gp_fault(stack_frame: StackFrame, error_code: u64) {
+    error!("general protection fault:\n{:#x?}\nerror code: {:#x?}", stack_frame, error_code);
 
     loop {}
 }
 
-pub extern "x86-interrupt" fn page_fault(stack_frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
-    error!("page fault:\n{:#x?}\nerror code: {:?}", stack_frame, error_code);
+pub extern "x86-interrupt" fn page_fault(stack_frame: StackFrame, error_code: PageFaultErrorCode) {
+    error!("page fault:\n{:#x?}\nerror code: {}", stack_frame, error_code);
 
     loop {}
 }
@@ -106,7 +101,7 @@ pub fn timer_interrupt() {
     );
 }
 
-pub extern "x86-interrupt" fn com1_interrupt(_stack_frame: InterruptStackFrame) {
+pub extern "x86-interrupt" fn com1_interrupt(_stack_frame: StackFrame) {
     unsafe {
         let byte = x86::io::inb(0x3f8);
 

@@ -2,7 +2,7 @@
 
 mod error;
 
-use crate::kernel::cpu::{self, tables};
+use crate::kernel::arch::x86_64::{self, tables};
 use crate::kernel::mem::pma;
 use crate::kernel::irq;
 use crate::kernel;
@@ -39,8 +39,7 @@ pub fn boot() -> Result<(), BootError> {
         Some(acpi) => {
             let mmap = unsafe { boot::exit_boot_services(None) };
 
-            cpu::enable_fsgsbase();
-            cpu::enable_xsave();
+            x86_64::init();
 
             tables::init();
 

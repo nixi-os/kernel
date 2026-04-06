@@ -12,6 +12,7 @@ nixi is a unix-like operating system written in rust for x86_64.
 - [ ] filesystem
 - [ ] syscalls
 - [ ] elf loader
+- [ ] hot reload kernel with complete state transfer
 
 ## Design
 nixi is self-contained and does not use a traditional bootloader, the kernel itself is a UEFI binary and doesn't need a bootloader.

@@ -1,6 +1,6 @@
 //! An implementation of the global descriptor table
 
-use crate::kernel::cpu::tables::tss::TaskStateSegment;
+use super::tss::TaskStateSegment;
 
 /// Common flags for segment descriptors
 pub struct DescriptorFlags;

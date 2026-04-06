@@ -2,9 +2,10 @@ pub mod error;
 pub mod context;
 
 use error::SchedulerError;
-use context::{Context, Segments, GeneralPurpose, StackFrame};
+use context::{Context, Segments, GeneralPurpose};
 
-use crate::kernel::cpu;
+use crate::kernel::arch::x86_64::interrupt::StackFrame;
+use crate::kernel::arch::x86_64::{self, tables};
 
 use spin::{Lazy, Mutex};
 
@@ -99,13 +100,13 @@ impl Scheduler {
 
         self.procs.get_mut(&current.pid).expect("current task descriptor should never be invalid").tasks[current.tid].ctx = ctx;
 
-        // TODO: we must set the kernel stack on each context switch
-
         unsafe {
             core::arch::x86_64::_xsave(self.procs[&current.pid].tasks[current.tid].xsave, u64::MAX);
 
             core::arch::x86_64::_xrstor(self.procs[&next.pid].tasks[next.tid].xsave, u64::MAX);
         }
+
+        tables::set_kernel_stack(self.procs[&next.pid].tasks[next.tid].kernel_stack.as_ptr());
 
         self.current = Some(next);
 
@@ -145,7 +146,7 @@ pub struct Task {
 impl Task {
     /// Create a new task with an entry point and privilege level
     pub fn new(entry: u64, privilege_level: u8) -> Task {
-        let layout = Layout::from_size_align(cpu::required_xsave_size() as usize, 64).expect("xsave allocation shouldn't break alignment rules");
+        let layout = Layout::from_size_align(x86_64::required_xsave_size() as usize, 64).expect("xsave allocation shouldn't break alignment rules");
         let xsave = unsafe { alloc::alloc::alloc_zeroed(layout) };
 
         let user_stack = Box::new([0; 4096 * 4]);
