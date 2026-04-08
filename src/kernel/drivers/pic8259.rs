@@ -1,6 +1,6 @@
 use crate::helpers::*;
 
-use x86::io;
+use crate::kernel::arch::x86_64::io;
 
 const MASTER: u16 = 0x20;
 const SLAVE: u16 = 0xa0;

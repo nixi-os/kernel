@@ -2,8 +2,7 @@
 
 use crate::kernel::drivers::tty::TtyProvider;
 
-use x86_64::instructions::interrupts;
-use x86::io;
+use crate::kernel::arch::x86_64::io;
 
 use spin::{Lazy, Mutex};
 
@@ -40,15 +39,13 @@ impl Serial {
     }
 
     pub fn write(&self, buf: &[u8]) {
-        interrupts::without_interrupts(|| {
-            for byte in buf {
-                unsafe {
-                    while io::inb(self.port + 5) & 0x20 == 0 {}
+        for byte in buf {
+            unsafe {
+                while io::inb(self.port + 5) & 0x20 == 0 {}
 
-                    io::outb(self.port, *byte);
-                }
+                io::outb(self.port, *byte);
             }
-        });
+        }
     }
 }
 

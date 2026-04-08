@@ -1,6 +1,19 @@
 //! An implementation of the global descriptor table
 
 use super::tss::TaskStateSegment;
+use super::DescriptorTablePointer;
+
+use core::arch::asm;
+
+/// Load the global descriptor table register
+pub fn load(ptr: &DescriptorTablePointer) {
+    unsafe {
+        asm!(
+            "lgdt [{ptr}]",
+            ptr = in(reg) ptr as *const DescriptorTablePointer,
+        );
+    }
+}
 
 /// Common flags for segment descriptors
 pub struct DescriptorFlags;

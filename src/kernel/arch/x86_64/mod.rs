@@ -2,11 +2,12 @@
 
 pub mod tables;
 pub mod interrupt;
-pub mod control;
+pub mod registers;
+pub mod io;
 
 use crate::helpers::*;
 
-use control::{Cr4Flags, XCr0Flags};
+use registers::{Cr4Flags, XCr0Flags};
 
 use core::arch::x86_64;
 
@@ -14,9 +15,9 @@ use core::arch::x86_64;
 /// Initialize required processor features
 pub fn init() {
     if x86_64::__cpuid_count(7, 0).ebx & 1 == 1 && x86_64::__cpuid_count(1, 0).ecx & (1 << 26) != 0 {
-        control::mask_cr4(Cr4Flags::FSGSBASE | Cr4Flags::OSXSAVE);
+        registers::cr4_mask(Cr4Flags::FSGSBASE | Cr4Flags::OSXSAVE);
 
-        control::xcr0_set(XCr0Flags::X87_FPU | XCr0Flags::SSE_STATE);
+        registers::xcr0_set(XCr0Flags::X87_FPU | XCr0Flags::SSE_STATE);
 
         log!("feature enabled: FSGSBASE and XSAVE");
     } else {

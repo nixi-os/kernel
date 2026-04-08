@@ -11,9 +11,6 @@ use idt::InterruptDescriptorTable;
 use gdt::GlobalDescriptorTable;
 use tss::TaskStateSegment;
 
-use x86_64::structures::DescriptorTablePointer;
-use x86_64::VirtAddr;
-
 use core::arch::asm;
 
 // NOTE: having a single global gdt and tss without a mutex is safe as long as we dont do SMP
@@ -32,6 +29,13 @@ struct Tables {
     tss: TaskStateSegment,
 }
 
+/// The descriptor pointer is used to specify the address and size of a descriptor table
+#[repr(C, packed)]
+pub struct DescriptorTablePointer {
+    pub limit: u16,
+    pub base: u64,
+}
+
 /// Initialize the tables
 pub fn init() {
     unsafe {
@@ -41,9 +45,9 @@ pub fn init() {
 
         (&raw mut TABLES.gdt).init_with_tss(&raw const TABLES.tss as u64);
 
-        x86_64::instructions::tables::lgdt(&DescriptorTablePointer {
-            base: VirtAddr::from_ptr(&raw const TABLES.gdt),
+        gdt::load(&DescriptorTablePointer {
             limit: core::mem::size_of::<GlobalDescriptorTable>() as u16,
+            base: &raw const TABLES.gdt as u64,
         });
 
         // load code segment (CS) using far return
@@ -75,9 +79,9 @@ pub fn init() {
 
         (&raw mut TABLES.idt).init();
 
-        x86_64::instructions::tables::lidt(&DescriptorTablePointer {
-            base: VirtAddr::from_ptr(&raw const TABLES.idt),
+        idt::load(&DescriptorTablePointer {
             limit: core::mem::size_of::<InterruptDescriptorTable>() as u16,
+            base: &raw const TABLES.idt as u64,
         });
     }
 }

@@ -4,8 +4,6 @@
 use crate::helpers::*;
 
 use uefi::mem::memory_map::{MemoryType, MemoryMap, MemoryMapOwned};
-use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
-use x86_64::PhysAddr;
 use spin::Mutex;
 
 static PMA: Mutex<PhysicalMemoryAllocator> = Mutex::new(PhysicalMemoryAllocator::new());
@@ -90,14 +88,6 @@ impl PhysicalMemoryAllocator {
         for bit in base..base + frames {
             self.bitmap[bit / u128::BITS as usize] &= !(1u128 << (bit % u128::BITS as usize));
         }
-    }
-}
-
-unsafe impl FrameAllocator<Size4KiB> for PhysicalMemoryAllocator {
-    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-        let frame = self.alloc(1);
-
-        Some(PhysFrame::containing_address(PhysAddr::new(frame as u64)))
     }
 }
 

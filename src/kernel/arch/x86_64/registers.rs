@@ -13,7 +13,7 @@ impl Cr4Flags {
 
 /// Mask a processor feature in Cr4
 #[inline]
-pub fn mask_cr4(flag: u64) {
+pub fn cr4_mask(flag: u64) {
     unsafe {
         asm!(
             "mov {reg}, cr4",

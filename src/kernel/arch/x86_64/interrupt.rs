@@ -1,9 +1,10 @@
-//! x86_64 interrupt structures
+//! Code for working with x86_64 interrupts
 
 use core::arch::asm;
 
 
 /// Clear interrupt flag in rflags and disable all maskable interrupts
+#[inline(always)]
 pub fn clear_interrupt_flag() {
     unsafe {
         asm!("cli");

@@ -1,5 +1,18 @@
 use crate::kernel::irq;
 
+use super::DescriptorTablePointer;
+
+use core::arch::asm;
+
+/// Load the interrupt descriptor table register
+pub fn load(ptr: &DescriptorTablePointer) {
+    unsafe {
+        asm!(
+            "lidt [{ptr}]",
+            ptr = in(reg) ptr as *const DescriptorTablePointer,
+        );
+    }
+}
 
 /// An interrupt gate descriptor as defined in figure 7-8
 #[repr(C, packed)]

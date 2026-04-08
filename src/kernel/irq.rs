@@ -1,6 +1,7 @@
 use crate::kernel::drivers::pic8259;
 use crate::kernel::drivers::tty::pool;
 use crate::kernel::scheduler::context;
+use crate::kernel::arch::x86_64::io;
 use crate::kernel::arch::x86_64::interrupt::{StackFrame, PageFaultErrorCode};
 
 use crate::helpers::*;
@@ -103,7 +104,7 @@ pub fn timer_interrupt() {
 
 pub extern "x86-interrupt" fn com1_interrupt(_stack_frame: StackFrame) {
     unsafe {
-        let byte = x86::io::inb(0x3f8);
+        let byte = io::inb(0x3f8);
 
         pool::lock().push(byte);
 
