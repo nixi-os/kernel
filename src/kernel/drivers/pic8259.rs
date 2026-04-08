@@ -6,6 +6,7 @@ const MASTER: u16 = 0x20;
 const SLAVE: u16 = 0xa0;
 const WAIT: u16 = 0x80;
 
+
 /// Initialize 8259A interrupt controller
 pub fn init(offset: u8) {
     assert_eq!(offset % 8, 0);
@@ -41,8 +42,12 @@ pub fn init(offset: u8) {
     }
 }
 
-/// Set the interrupt mask
-pub fn mask(mask: u16) {
+/// Set the interrupt mask, bits is a slice of interrupts you want enabled
+pub fn enable_maskable_interrupts(bits: &[u8]) {
+    log!("enable 8259A interrupts: {:?}", bits);
+
+    let mask = bits.iter().fold(u16::MAX, |mask, bit| mask & !(1 << bit));
+
     unsafe {
         io::outb(MASTER + 1, (mask & 0xff) as u8);
         io::outb(SLAVE + 1, ((mask >> 8) & 0xff) as u8);

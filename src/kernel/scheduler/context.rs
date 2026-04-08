@@ -61,10 +61,6 @@ pub fn enter_usermode() -> ! {
         (task.ctx.stack_frame, unsafe { task.kernel_stack.as_ptr().add(task.kernel_stack.len()) })
     });
 
-    interrupt::clear_interrupt_flag();
-
-    irq::enable_timer();
-
     tables::set_kernel_stack(kernel_stack);
 
     unsafe {

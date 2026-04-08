@@ -10,16 +10,9 @@ use core::arch::naked_asm;
 
 
 pub fn init() {
-    log!("enabling interrupts");
-
     pic8259::init(32);
 
-    pic8259::mask(0b1111_1111_1110_1111);
-}
-
-#[inline(always)]
-pub fn enable_timer() {
-    pic8259::mask(0b1111_1111_1110_1110);
+    pic8259::enable_maskable_interrupts(&[0, 4]);
 }
 
 pub extern "x86-interrupt" fn double_fault(stack_frame: StackFrame, error_code: u64) -> ! {
