@@ -1,58 +1,59 @@
-/*
-use crate::kernel::mem::pma::PhysicalMemoryAllocator;
-use crate::kernel::mem::error::MemoryError;
-use crate::helpers::*;
+//! Code for working with 64-bit paging
 
-use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
-use uefi::boot::MemoryType;
-
-use x86_64::structures::paging::mapper::{OffsetPageTable, MapToError};
-use x86_64::structures::paging::{PhysFrame, PageTable, PageTableFlags, Mapper, Size4KiB};
-use x86_64::registers::control::Cr3;
-use x86_64::{VirtAddr, PhysAddr};
-*/
+use crate::kernel::arch::x86_64;
 
 
-// NOTE: after a little research, turns out UEFI maps all conventional memory for us, so there is
-// no reason to identity map the kernel memory because its already mapped for us
-/*
-/// Initialize kernel page table by modifying the page table created by UEFI
-pub fn init(mmap: &MemoryMapOwned, pma: &mut PhysicalMemoryAllocator) -> Result<OffsetPageTable<'static>, MemoryError> {
-    let (frame, _) = Cr3::read();
+/// Represents the size of a page, modern processors support up to 1GiB pages
+pub enum PageSize {
+    Page4KiB,
+    Page2MiB,
+    Page1GiB,
+}
 
-    let ptr = frame.start_address().as_u64() as *mut PageTable;
+/// Represents the entire recursive page table
+pub struct PageTable {
+    pml4: *mut PageTableEntry,
+}
 
-    log!("initializing kernel page table at {:x?}", ptr);
+impl PageTable {
+    /// Map a virtual address to a physical address, both addresses must be aligned to the page size
+    pub fn map(vaddr: u64, paddr: u64, size: PageSize) {
+    }
+}
 
-    let mut table = unsafe { OffsetPageTable::new(ptr.as_mut_unchecked(), VirtAddr::zero()) };
+/// Page table entry flags, only flags which are common between PML4E, PDPTE, PDE and PTE are represented
+pub struct PageTableEntryFlags;
 
-    for descriptor in mmap.entries() {
-        if descriptor.ty == MemoryType::CONVENTIONAL && descriptor.phys_start != 0 {
-            log!("descriptor: {:x?}", descriptor);
+impl PageTableEntryFlags {
+    /// Must be 1 on all pages which you wish to use
+    pub const PRESENT: u64 = 1;
 
-            for page in 0..descriptor.page_count {
-                log!("addr: {:x?}", descriptor.phys_start + (page * 4096));
+    /// Indicates the ability to write to memory inside this page
+    pub const WRITE: u64 = 1 << 1;
 
-                let frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(descriptor.phys_start + (page * 4096)));
+    /// Indicates the ability for usermode (ring 3) access to this page
+    pub const USER: u64 = 1 << 2;
 
-                log!("mapping frame: {:x?}", frame);
+    /// If 1 then this will map the entry as a page, if 0 then the entry will reference a page table
+    pub const PAGE_SIZE: u64 = 1 << 7;
+}
 
-                // TODO: we should setup interrupts first, this is most likely a fault but we dont
-                // see it since we dont handle interrupts
-                match unsafe { table.identity_map(frame, PageTableFlags::WRITABLE | PageTableFlags::PRESENT, pma) } {
-                    Ok(_) | Err(MapToError::PageAlreadyMapped(_)) => {},
-                    Err(err) => return Err(MemoryError::MapToError(err)),
-                }
+/// A generic page table entry, this can either be the PML4E, PDPTE, PDE or the PTE
+#[repr(C)]
+pub struct PageTableEntry {
+    entry: u64,
+}
 
-                log!("done mapping: {:x?}", frame);
-            }
+impl PageTableEntry {
+    pub fn new(paddr: u64, flags: u64) -> PageTableEntry {
+        // NOTE: if its mapped as a page then the offset of the physical address depends on the
+        // page size, however this is not something we need to worry about since physical addresses
+        // will automatically fit this offset because of alignment guarantees that these low bits are zero
+
+        PageTableEntry {
+            entry: (flags & 0xff) | ((paddr & ((1u64 << x86_64::physical_address_width()) - 1)) << 12),
         }
     }
-
-    log!("done");
-
-    Ok(table)
 }
-*/
 
 

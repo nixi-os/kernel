@@ -31,4 +31,10 @@ pub fn required_xsave_size() -> u32 {
     x86_64::__cpuid_count(13, 0).ebx
 }
 
+/// Determine the physical address width supported by the processor also known as MAXPHYADDR as described in 5.1.4 Enumeration of Paging Features by CPUID
+#[inline(always)]
+pub fn physical_address_width() -> u32 {
+    x86_64::__cpuid(0x80000008).eax & 0xff
+}
+
 
