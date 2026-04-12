@@ -9,6 +9,8 @@ use crate::helpers::*;
 use drivers::tty;
 use scheduler::{TaskDescriptor, context};
 
+use mem::paging::*;
+
 // TODO: decide whether we should move all error types into a separate crate, this would be useful
 // because it would mean that we wouldnt have redefine error types for usermode programs
 
@@ -45,6 +47,15 @@ pub fn entry() -> ! {
 
         scheduler.current = Some(TaskDescriptor::new(pid, tid));
     });
+
+    // NOTE: this is just temporary testing the page table builder, its not doing anything of value
+    let table = PageTable::new();
+
+    table.map(4096 * 3, 4096 * 4, PageTableEntryFlags::USER | PageTableEntryFlags::WRITE, PageSize::Page4KiB);
+
+    table.map(0x200000 * 5, 0x200000, 0, PageSize::Page2MiB);
+
+    table.map((0x200000 * 7) + (4096 * 3), 0x200000, 0, PageSize::Page4KiB);
 
     context::enter_usermode();
 }

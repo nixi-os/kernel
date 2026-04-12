@@ -8,16 +8,37 @@ use spin::Mutex;
 
 static PMA: Mutex<PhysicalMemoryAllocator> = Mutex::new(PhysicalMemoryAllocator::new());
 
+/// Initialize the physical memory allocator with a memory map
 #[inline(always)]
 pub fn init(mmap: &MemoryMapOwned) {
     PMA.lock().init(mmap)
 }
 
+/// Allocate a continuous set of physical frames within a 128 frame chunk
 #[inline(always)]
 pub fn alloc(frames: usize) -> *const () {
     PMA.lock().alloc(frames)
 }
 
+/// Allocate a continuous set of physical frames within a 128 frame chunk and overwrite it with all zeroes
+#[inline(always)]
+pub fn alloc_zeroed(frames: usize) -> *const () {
+    let ptr = PMA.lock().alloc(frames);
+
+    for index in 0..frames {
+        unsafe {
+            let frame = (ptr as *mut [u64; 512]).add(index);
+
+            *frame = [0u64; 512];
+       }
+    }
+
+    ptr
+}
+
+/// Free a continuous set of physical frames.
+///
+/// free is unsafe because the caller must ensure that the address and frame count is valid.
 #[inline(always)]
 pub unsafe fn free(address: *const (), frames: usize) {
     unsafe {
@@ -39,7 +60,7 @@ impl PhysicalMemoryAllocator {
 
     /// Initialize the physical memory allocator
     pub fn init(&mut self, mmap: &MemoryMapOwned) {
-        log!("initializing pma with {} mmap entries", mmap.len());
+        log!("mmap entries: {}", mmap.len());
 
         for descriptor in mmap.entries() {
             if descriptor.ty == MemoryType::CONVENTIONAL && descriptor.phys_start > 0 {
