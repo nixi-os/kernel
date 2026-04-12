@@ -36,7 +36,7 @@ impl PageSize {
 ///
 /// The page tables are in a 4-level radix tree structure
 pub struct PageTable {
-   pml4: *mut PageTableEntry,
+    pml4: *mut PageTableEntry,
 }
 
 impl PageTable {
