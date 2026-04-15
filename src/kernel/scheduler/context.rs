@@ -56,7 +56,11 @@ pub fn enter_usermode() -> ! {
     let (stack_frame, kernel_stack) = scheduler::with_scheduler(|scheduler| {
         let (current, _) = scheduler.schedule_task();
 
-        let task = scheduler.lookup_task(current);
+        let (task, proc) = scheduler.lookup(current);
+
+        // TODO: we hang here, most likely there is something wrong with our page tables, we will
+        // have to look more into this
+        proc.pt.load();
 
         (task.ctx.stack_frame, unsafe { task.kernel_stack.as_ptr().add(task.kernel_stack.len()) })
     });

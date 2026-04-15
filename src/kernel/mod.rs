@@ -48,14 +48,14 @@ pub fn entry() -> ! {
         scheduler.current = Some(TaskDescriptor::new(pid, tid));
     });
 
-    // NOTE: this is just temporary testing the page table builder, its not doing anything of value
-    let table = PageTable::new();
+    // TODO: during the boot phase we will have to create a kernel page table, this table will
+    // simply map high memory to the address which is marked as code in the memory map from uefi
+    //
+    // we will make it a simple 1gig mapping, we will just copy paste it into all userspace page
+    // tables too so that we dont have to switch when we are in kernel mode
 
-    table.map(4096 * 3, 4096 * 4, PageTableEntryFlags::USER | PageTableEntryFlags::WRITE, PageSize::Page4KiB);
-
-    table.map(0x200000 * 5, 0x200000, 0, PageSize::Page2MiB);
-
-    table.map((0x200000 * 7) + (4096 * 3), 0x200000, 0, PageSize::Page4KiB);
+    // TODO: in order to make the transition to paging easier, we should start by making it so that
+    // both the kernel and the userspace is identity mapped
 
     context::enter_usermode();
 }

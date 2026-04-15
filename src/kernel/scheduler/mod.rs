@@ -6,6 +6,7 @@ use context::{Context, Segments, GeneralPurpose};
 
 use crate::kernel::arch::x86_64::interrupt::StackFrame;
 use crate::kernel::arch::x86_64::{self, tables};
+use crate::kernel::mem::paging::{PageTable, PageSize, PageTableEntry, PageTableEntryFlags};
 
 use spin::{Lazy, Mutex};
 
@@ -55,9 +56,9 @@ impl Scheduler {
         Ok(proc.create_task(entry, privilege_level))
     }
 
-    /// Lookup a task from its task descriptor
-    pub fn lookup_task<'a>(&'a self, task: TaskDescriptor) -> &'a Task {
-        &self.procs[&task.pid].tasks[task.tid]
+    /// Lookup a task and process from its task descriptor
+    pub fn lookup<'a>(&'a self, task: TaskDescriptor) -> (&'a Task, &'a Proc) {
+        (&self.procs[&task.pid].tasks[task.tid], &self.procs[&task.pid])
     }
 
     /// Allocate a new process id
@@ -106,6 +107,8 @@ impl Scheduler {
             core::arch::x86_64::_xrstor(self.procs[&next.pid].tasks[next.tid].xsave, u64::MAX);
         }
 
+        self.procs[&next.pid].pt.load();
+
         tables::set_kernel_stack(self.procs[&next.pid].tasks[next.tid].kernel_stack.as_ptr());
 
         self.current = Some(next);
@@ -117,13 +120,19 @@ impl Scheduler {
 /// A process, a single process can have multiple tasks
 pub struct Proc {
     tasks: Vec<Task>,
+    pt: PageTable,
 }
 
 impl Proc {
     /// Create a new process
     pub fn new() -> Proc {
+        let mut pt = PageTable::new();
+
+        pt.identity_map(0, 1, PageTableEntryFlags::USER | PageTableEntryFlags::WRITE, PageSize::Page1GiB);
+
         Proc {
             tasks: Vec::new(),
+            pt,
         }
     }
 

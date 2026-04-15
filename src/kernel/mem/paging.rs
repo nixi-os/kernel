@@ -1,5 +1,6 @@
 //! Code for working with 64-bit paging
 
+use crate::kernel::arch::x86_64::registers;
 use crate::kernel::arch::x86_64;
 use crate::kernel::mem::pma;
 
@@ -36,7 +37,7 @@ impl PageSize {
 ///
 /// The page tables are in a 4-level radix tree structure
 pub struct PageTable {
-    pml4: *mut PageTableEntry,
+    pub pml4: *mut PageTableEntry,
 }
 
 impl PageTable {
@@ -47,15 +48,33 @@ impl PageTable {
         }
     }
 
+    /// Load the page table by setting the Cr3 register
+    ///
+    /// This a convencience wrapper for [cr3_set](registers::cr3_set)
+    pub fn load(&self) {
+        registers::cr3_set(self.pml4 as u64);
+    }
+
+    // TODO: do we really need the lookup?
+
     /// Lookup the physical address which a virtual address is mapped
     pub fn lookup(vaddr: u64) -> u64 {
         todo!()
     }
 
+    /// Identity map some memory given a start address, a page count, flags and the page size
+    pub fn identity_map(&mut self, addr: u64, pages: u64, flags: u64, size: PageSize) {
+        for page in 0..pages {
+            let addr = page * size.align();
+
+            self.map(addr, addr, flags, size);
+        }
+    }
+
     /// Map a virtual address to a physical address, both addresses must be aligned to the page size
     ///
     /// This is purely a safe convenience wrapper for [create_map](PageTable::create_map)
-    pub fn map(&self, vaddr: u64, paddr: u64, flags: u64, size: PageSize) {
+    pub fn map(&mut self, vaddr: u64, paddr: u64, flags: u64, size: PageSize) {
         assert!(vaddr % size.align() == 0 && paddr % size.align() == 0);
 
         unsafe {
@@ -66,8 +85,8 @@ impl PageTable {
     /// Recursively create a page table mapping for a virtual address in the radix tree
     ///
     /// The level must correspond to the amount of levels remainding after the table (eg. PML4 would be level 3 in a 4KiB page map).
-    pub unsafe fn create_map(
-        &self,
+    unsafe fn create_map(
+        &mut self,
         vaddr: u64,
         paddr: u64,
         flags: u64,
@@ -93,6 +112,9 @@ impl PageTable {
         }
     }
 }
+
+unsafe impl Send for PageTable {}
+unsafe impl Sync for PageTable {}
 
 /// Page table entry flags, only flags which are common between PML4E, PDPTE, PDE and PTE are represented
 pub struct PageTableEntryFlags;
@@ -129,16 +151,14 @@ impl PageTableEntry {
         }
     }
 
-    /// Create an empty page table entry
-    pub fn empty() -> PageTableEntry {
-        PageTableEntry {
-            entry: 0,
-        }
-    }
-
     /// Returns the physical address field of the entry
     pub fn physical_address(&self) -> u64 {
         (self.entry >> 12) & ((1u64 << x86_64::physical_address_width()) - 1)
+    }
+
+    /// Returns true if the PAGE_SIZE flag is set
+    pub fn is_page_map(&self) -> bool {
+        self.entry & PageTableEntryFlags::PAGE_SIZE != 0
     }
 
     /// Returns true if the present flag is set
