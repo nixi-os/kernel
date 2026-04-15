@@ -65,9 +65,9 @@ impl PageTable {
     /// Identity map some memory given a start address, a page count, flags and the page size
     pub fn identity_map(&mut self, addr: u64, pages: u64, flags: u64, size: PageSize) {
         for page in 0..pages {
-            let addr = page * size.align();
+            let paddr = addr + (page * size.align());
 
-            self.map(addr, addr, flags, size);
+            self.map(paddr, paddr, flags, size);
         }
     }
 
@@ -102,7 +102,7 @@ impl PageTable {
 
             if depth > 0 {
                 if !(*entry).is_present() {
-                    *entry = PageTableEntry::new(pma::alloc_zeroed(1) as u64, PageTableEntryFlags::PRESENT);
+                    *entry = PageTableEntry::new(pma::alloc_zeroed(1) as u64, flags | PageTableEntryFlags::PRESENT);
                 }
 
                 self.create_map(vaddr, paddr, flags, size, depth - 1, (*entry).physical_address() as *mut PageTableEntry);
@@ -142,12 +142,8 @@ pub struct PageTableEntry {
 impl PageTableEntry {
     /// Create a new page table entry with a physical address and flags
     pub fn new(paddr: u64, flags: u64) -> PageTableEntry {
-        // NOTE: if its mapped as a page then the offset of the physical address depends on the
-        // page size, however this is not something we need to worry about since physical addresses
-        // will automatically fit this offset because of alignment guarantees that these low bits are zero
-
         PageTableEntry {
-            entry: (flags & 0xff) | ((paddr & ((1u64 << x86_64::physical_address_width()) - 1)) << 12),
+            entry: (flags & 0xff) | (paddr & !0xfff),
         }
     }
 
