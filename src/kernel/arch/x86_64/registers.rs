@@ -1,18 +1,16 @@
 //! Utilites for working with control registers
 
-use crate::kernel::arch::x86_64;
-
 use core::arch::asm;
 
 
 /// Set the Cr3 register for 4-level paging, the Cr3 register points to a PML4 table, the pointer must be a physical address
 pub fn cr3_set(pml4: u64) {
-    let cr3 = (pml4 & ((1u64 << x86_64::physical_address_width()) - 1)) << 12;
+    assert!(pml4 % 4096 == 0);
 
     unsafe {
         asm!(
-            "mov cr3, {cr3}",
-            cr3 = in(reg) cr3,
+            "mov cr3, {pml4}",
+            pml4 = in(reg) pml4,
         );
     }
 }

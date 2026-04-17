@@ -98,7 +98,7 @@ impl PageTable {
         let index = (vaddr >> (12 + ((3 - level) * 9))) & 0x1ff;
 
         unsafe {
-            let entry = table.add(index as usize);
+            let entry = table.byte_add(index as usize * core::mem::size_of::<PageTableEntry>());
 
             if depth > 0 {
                 if !(*entry).is_present() {
@@ -134,7 +134,7 @@ impl PageTableEntryFlags {
 }
 
 /// A generic page table entry, this can either be the PML4E, PDPTE, PDE or the PTE
-#[repr(C)]
+#[repr(C, packed)]
 pub struct PageTableEntry {
     entry: u64,
 }
@@ -149,7 +149,7 @@ impl PageTableEntry {
 
     /// Returns the physical address field of the entry
     pub fn physical_address(&self) -> u64 {
-        (self.entry >> 12) & ((1u64 << x86_64::physical_address_width()) - 1)
+        self.entry & (((1u64 << x86_64::physical_address_width()) - 1) << 12)
     }
 
     /// Returns true if the PAGE_SIZE flag is set

@@ -64,7 +64,7 @@ pub fn timer_interrupt() {
         "call {}",
 
         // call end_of_interrupt
-        "mov cl, 32",
+        "mov rcx, 32",
         "call {}",
 
         // restore FS/GS

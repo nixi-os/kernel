@@ -32,7 +32,8 @@ fn task1() -> ! {
     loop {
         for i in 0..4096 {
             if example_fn(i) {
-                log!("hello from task1");
+                // TODO: the log function will deadlock if we run it inside a task
+                // log!("hello from task1");
             }
         }
     }

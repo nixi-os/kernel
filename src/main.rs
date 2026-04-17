@@ -18,7 +18,11 @@ use uefi::prelude::*;
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    error!("panic: {}", info.message());
+    if let Some(location) = info.location() {
+        error!("panic in '{}' at line {}: {}", location.file(), location.line(), info.message());
+    } else {
+        error!("panic: {}", info.message());
+    }
 
     loop {}
 }

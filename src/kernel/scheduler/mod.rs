@@ -6,7 +6,7 @@ use context::{Context, Segments, GeneralPurpose};
 
 use crate::kernel::arch::x86_64::interrupt::StackFrame;
 use crate::kernel::arch::x86_64::{self, tables};
-use crate::kernel::mem::paging::{PageTable, PageSize, PageTableEntry, PageTableEntryFlags};
+use crate::kernel::mem::paging::{PageTable, PageSize, PageTableEntryFlags};
 
 use spin::{Lazy, Mutex};
 
@@ -95,6 +95,13 @@ impl Scheduler {
         }
     }
 
+    /// Set the kernel stack to a task from its descriptor
+    unsafe fn set_kernel_stack(&self, descriptor: TaskDescriptor) {
+        let kernel_stack = &self.procs[&descriptor.pid].tasks[descriptor.tid].kernel_stack;
+
+        tables::set_kernel_stack(unsafe { kernel_stack.as_ptr().add(kernel_stack.len()) });
+    }
+
     /// Perform a context switch from the current task to the next task
     unsafe fn switch(&mut self, ctx: Context) -> Context {
         let (current, next) = self.schedule_task();
@@ -105,11 +112,11 @@ impl Scheduler {
             core::arch::x86_64::_xsave(self.procs[&current.pid].tasks[current.tid].xsave, u64::MAX);
 
             core::arch::x86_64::_xrstor(self.procs[&next.pid].tasks[next.tid].xsave, u64::MAX);
+
+            self.set_kernel_stack(next);
         }
 
-        self.procs[&next.pid].pt.load();
-
-        tables::set_kernel_stack(self.procs[&next.pid].tasks[next.tid].kernel_stack.as_ptr());
+        self.procs[&next.pid].page_table.load();
 
         self.current = Some(next);
 
@@ -120,19 +127,19 @@ impl Scheduler {
 /// A process, a single process can have multiple tasks
 pub struct Proc {
     tasks: Vec<Task>,
-    pt: PageTable,
+    page_table: PageTable,
 }
 
 impl Proc {
     /// Create a new process
     pub fn new() -> Proc {
-        let mut pt = PageTable::new();
+        let mut page_table = PageTable::new();
 
-        pt.identity_map(0, 1, PageTableEntryFlags::USER | PageTableEntryFlags::WRITE, PageSize::Page1GiB);
+        page_table.identity_map(0, 1, PageTableEntryFlags::USER | PageTableEntryFlags::WRITE, PageSize::Page1GiB);
 
         Proc {
             tasks: Vec::new(),
-            pt,
+            page_table,
         }
     }
 

@@ -2,10 +2,9 @@
 
 use super::SCHEDULER;
 
-use crate::kernel::arch::x86_64::interrupt::{self, StackFrame};
+use crate::kernel::arch::x86_64::interrupt::StackFrame;
 use crate::kernel::arch::x86_64::tables;
 use crate::kernel::scheduler;
-use crate::kernel::irq;
 use crate::helpers::*;
 
 use core::arch::asm;
@@ -58,7 +57,7 @@ pub fn enter_usermode() -> ! {
 
         let (task, proc) = scheduler.lookup(current);
 
-        proc.pt.load();
+        proc.page_table.load();
 
         (task.ctx.stack_frame, unsafe { task.kernel_stack.as_ptr().add(task.kernel_stack.len()) })
     });
@@ -89,11 +88,13 @@ pub fn enter_usermode() -> ! {
 pub extern "C" fn switch(ctx: *mut Context) {
     let mut scheduler = SCHEDULER.lock();
 
-    log!("switch context: {:x?}", unsafe { *ctx });
+    log!("entry: {:x?}", unsafe { *ctx });
 
     unsafe {
         *ctx = scheduler.switch(*ctx);
     }
+
+    log!("return: {:x?}", unsafe { *ctx });
 }
 
 

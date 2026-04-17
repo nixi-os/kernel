@@ -1,9 +1,5 @@
 //! An implementation of task state segments
 
-// TODO: we will have to do a unique kernel stack for each task, this will simply mean that we
-// switch out the rsp0 whenever we do a context switch such that if a context switch happens inside
-// kernel mode then we know that the stack wont be corrupted
-
 
 /// The task state segment contains RSP0-2, IST1-7 and the I/O Map Base Address
 #[repr(C, packed)]

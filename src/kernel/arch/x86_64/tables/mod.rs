@@ -88,6 +88,8 @@ pub fn init() {
 
 /// Set the kernel stack (rsp0) in the task state segment
 pub fn set_kernel_stack(stack: *const u8) {
+    log!("set_kernel_stack: {:#x?}", stack);
+
     unsafe {
         (&raw mut TABLES.tss).set_rsp0(stack as u64);
     }
