@@ -116,8 +116,8 @@ pub struct GlobalDescriptorTable {
     null: SegmentDescriptor,
     kernel_code: SegmentDescriptor,
     kernel_data: SegmentDescriptor,
-    user_data: SegmentDescriptor,
     user_code: SegmentDescriptor,
+    user_data: SegmentDescriptor,
     tss: TssDescriptor,
 }
 
@@ -128,8 +128,8 @@ impl GlobalDescriptorTable {
             null: SegmentDescriptor::code_or_data(),
             kernel_code: SegmentDescriptor::code_or_data().set_flags(DescriptorFlags::EXECUTE),
             kernel_data: SegmentDescriptor::code_or_data(),
-            user_data: SegmentDescriptor::code_or_data().set_privilege_level(3),
             user_code: SegmentDescriptor::code_or_data().set_flags(DescriptorFlags::EXECUTE).set_privilege_level(3),
+            user_data: SegmentDescriptor::code_or_data().set_privilege_level(3),
             tss: TssDescriptor {
                 descriptor: 0,
             },

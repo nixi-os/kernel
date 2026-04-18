@@ -74,7 +74,7 @@ pub fn enter_usermode() -> ! {
             "iretq",
             ss = in(reg) stack_frame.ss,
             rsp = in(reg) stack_frame.rsp,
-            rflags = in(reg) stack_frame.rflags,
+            rflags = in(reg) stack_frame.rflags.flags,
             cs = in(reg) stack_frame.cs,
             rip = in(reg) stack_frame.rip,
             options(noreturn),
@@ -93,8 +93,6 @@ pub extern "C" fn switch(ctx: *mut Context) {
     unsafe {
         *ctx = scheduler.switch(*ctx);
     }
-
-    log!("return: {:x?}", unsafe { *ctx });
 }
 
 

@@ -1,15 +1,5 @@
 //! Code for working with x86_64 interrupts
 
-use core::arch::asm;
-
-
-/// Clear interrupt flag in rflags and disable all maskable interrupts
-#[inline(always)]
-pub fn clear_interrupt_flag() {
-    unsafe {
-        asm!("cli");
-    }
-}
 
 /// The interrupt stack frame
 #[repr(C)]
@@ -17,9 +7,56 @@ pub fn clear_interrupt_flag() {
 pub struct StackFrame {
     pub rip: u64,
     pub cs: u64,
-    pub rflags: u64,
+    pub rflags: RFlags,
     pub rsp: u64,
     pub ss: u64,
+}
+
+/// The system flags in the RFLAGS register as defined in figure 2-5
+#[derive(Default, Clone, Copy)]
+#[repr(transparent)]
+pub struct RFlags {
+    pub flags: u64,
+}
+
+impl RFlags {
+    pub fn new(flags: u64) -> RFlags {
+        RFlags {
+            flags,
+        }
+    }
+}
+
+impl RFlags {
+    const FLAGS: [(&'static str, u64); 9] = [
+        ("TRAP", 1 << 8),
+        ("INTERRUPT_ENABLE", 1 << 9),
+        ("NESTED_TASK", 1 << 14),
+        ("RESUME", 1 << 16),
+        ("VIRTUAL_8086", 1 << 17),
+        ("ALIGNMENT_CHECK", 1 << 18),
+        ("VIRTUAL_INTERRUPT", 1 << 19),
+        ("VIRTUAL_INTERRUPT_PENDING", 1 << 20),
+        ("IDENTIFICATION", 1 << 21),
+    ];
+}
+
+impl core::fmt::Debug for RFlags {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
+        f.write_str("RFlags { ")?;
+
+        let mut flags = RFlags::FLAGS.iter().filter(|(_, flag)| self.flags & flag != 0);
+
+        f.write_fmt(format_args!("iopl: {}, flags: {}", (self.flags >> 12) & 3, flags.next().map(|(name, _)| *name).unwrap_or("None")))?;
+
+        while let Some((name, _)) = flags.next() {
+            f.write_fmt(format_args!(" | {}", name))?;
+        }
+
+        f.write_str(" }")?;
+
+        Ok(())
+    }
 }
 
 /// A page fault error code as defined in figure 7-11
@@ -43,7 +80,6 @@ impl PageFaultErrorCode {
     ];
 }
 
-/// Bitflags pretty printing on a budget :)
 impl core::fmt::Display for PageFaultErrorCode {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
         f.write_str("PageFaultErrorCode(")?;

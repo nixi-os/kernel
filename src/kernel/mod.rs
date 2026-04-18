@@ -3,13 +3,12 @@ pub mod mem;
 pub mod irq;
 pub mod scheduler;
 pub mod arch;
+pub mod syscall;
 
 use crate::helpers::*;
 
 use drivers::tty;
 use scheduler::{TaskDescriptor, context};
-
-use mem::paging::*;
 
 // TODO: decide whether we should move all error types into a separate crate, this would be useful
 // because it would mean that we wouldnt have redefine error types for usermode programs
@@ -29,9 +28,14 @@ fn example_fn(i: usize) -> bool {
 // usermode(ring 3).
 #[inline(never)]
 fn task1() -> ! {
+    for _ in 0..100000 {}
+
     loop {
         for i in 0..4096 {
             if example_fn(i) {
+                unsafe {
+                    core::arch::asm!("syscall");
+                }
                 // TODO: the log function will deadlock if we run it inside a task
                 // log!("hello from task1");
             }

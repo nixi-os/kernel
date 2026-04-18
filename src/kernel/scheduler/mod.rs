@@ -4,7 +4,7 @@ pub mod context;
 use error::SchedulerError;
 use context::{Context, Segments, GeneralPurpose};
 
-use crate::kernel::arch::x86_64::interrupt::StackFrame;
+use crate::kernel::arch::x86_64::interrupt::{StackFrame, RFlags};
 use crate::kernel::arch::x86_64::{self, tables};
 use crate::kernel::mem::paging::{PageTable, PageSize, PageTableEntryFlags};
 
@@ -173,10 +173,10 @@ impl Task {
                 general: GeneralPurpose::default(),
                 stack_frame: StackFrame {
                     rip: entry,
-                    cs: 0x20 | (privilege_level as u64 & 3),
-                    rflags: 1 | (1 << 9),
+                    cs: 0x18 | (privilege_level as u64 & 3),
+                    rflags: RFlags::new(1 | (1 << 9)),
                     rsp: user_stack.as_ptr() as u64 + user_stack.len() as u64,
-                    ss: 0x18 | (privilege_level as u64 & 3),
+                    ss: 0x20 | (privilege_level as u64 & 3),
                 },
             },
             user_stack,

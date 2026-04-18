@@ -3,16 +3,19 @@
 pub mod tables;
 pub mod interrupt;
 pub mod registers;
+pub mod msr;
 pub mod io;
 
 use crate::helpers::*;
+use crate::kernel::syscall;
 
 use registers::{Cr4Flags, XCr0Flags};
+use msr::ModelSpecificRegister;
 
 use core::arch::x86_64;
 
 
-/// Initialize required processor features
+/// Initialize required processor features and MSRs
 pub fn init() {
     if x86_64::__cpuid_count(7, 0).ebx & 1 == 1 && x86_64::__cpuid_count(1, 0).ecx & (1 << 26) != 0 {
         registers::cr4_mask(Cr4Flags::FSGSBASE | Cr4Flags::OSXSAVE);
@@ -23,6 +26,14 @@ pub fn init() {
     } else {
         panic!("processor must support FSGSBASE and XSAVE");
     }
+
+    msr::write_msr(ModelSpecificRegister::IA32_LSTAR, syscall::syscall_handler as *const () as u64);
+
+    msr::write_msr(ModelSpecificRegister::IA32_STAR, (0x08 << 48) | (0x08 << 32));
+
+    msr::update_msr(ModelSpecificRegister::IA32_EFER, |efer| efer | 1);
+
+    log!("initialized IA32_LSTAR, IA32_STAR and IA32_EFER.SCE");
 }
 
 /// The size (in bytes) required by the XSAVE instruction for an XSAVE area containing all the user state components supported by this processor
