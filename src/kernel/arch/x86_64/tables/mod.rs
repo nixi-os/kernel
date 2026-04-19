@@ -14,7 +14,7 @@ use tss::TaskStateSegment;
 use core::arch::asm;
 
 // NOTE: having a single global gdt and tss without a mutex is safe as long as we dont do SMP
-static mut TABLES: Tables = Tables {
+pub static mut TABLES: Tables = Tables {
     idt: InterruptDescriptorTable::uninit(),
     gdt: GlobalDescriptorTable::uninit(),
     tss: TaskStateSegment::uninit(),
@@ -23,10 +23,10 @@ static mut TABLES: Tables = Tables {
 /// A shared structure for the global descriptor table, the task state segment and the interrupt
 /// descriptor table
 #[repr(C)]
-struct Tables {
-    idt: InterruptDescriptorTable,
-    gdt: GlobalDescriptorTable,
-    tss: TaskStateSegment,
+pub struct Tables {
+    pub idt: InterruptDescriptorTable,
+    pub gdt: GlobalDescriptorTable,
+    pub tss: TaskStateSegment,
 }
 
 /// The descriptor pointer is used to specify the address and size of a descriptor table

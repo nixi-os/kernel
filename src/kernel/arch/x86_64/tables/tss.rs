@@ -5,7 +5,7 @@
 #[repr(C, packed)]
 pub struct TaskStateSegment {
     _reserved1: u32,
-    rsp: [u64; 3],
+    pub rsp: [u64; 3],
     _reserved2: u64,
     ist: [u64; 7],
     _reserved3: u64,

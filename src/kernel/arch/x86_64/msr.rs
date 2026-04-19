@@ -13,6 +13,7 @@ pub enum ModelSpecificRegister {
     IA32_EFER = 0xc0000080,
     IA32_STAR = 0xc0000081,
     IA32_LSTAR = 0xc0000082,
+    IA32_FMASK = 0xc0000084,
 }
 
 /// Write to a Model Specific Register using the WRMSR instruction

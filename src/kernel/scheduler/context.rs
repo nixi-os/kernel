@@ -93,6 +93,8 @@ pub extern "C" fn switch(ctx: *mut Context) {
     unsafe {
         *ctx = scheduler.switch(*ctx);
     }
+
+    log!("exit: {:x?}", unsafe { *ctx });
 }
 
 
