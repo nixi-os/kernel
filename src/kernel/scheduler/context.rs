@@ -88,13 +88,13 @@ pub fn enter_usermode() -> ! {
 pub extern "C" fn switch(ctx: *mut Context) {
     let mut scheduler = SCHEDULER.lock();
 
-    log!("entry: {:x?}", unsafe { *ctx });
+    // log!("entry: {:x?}", unsafe { *ctx });
 
     unsafe {
         *ctx = scheduler.switch(*ctx);
     }
 
-    log!("exit: {:x?}", unsafe { *ctx });
+    // log!("exit: {:x?}", unsafe { *ctx });
 }
 
 
