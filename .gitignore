@@ -1,4 +1,3 @@
 /target
-/guide/book
-/dev/esp
-/dev/OVMF_VARS.fd
+/ovmf
+/cookbook/book
