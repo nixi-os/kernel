@@ -7,6 +7,7 @@ use context::{Context, Segments, GeneralPurpose};
 use crate::kernel::arch::x86_64::interrupt::{StackFrame, RFlags};
 use crate::kernel::arch::x86_64::{self, tables};
 use crate::kernel::mem::paging::{PageTable, PageSize, PageTableEntryFlags};
+use crate::kernel::vfs::OwnedPath;
 
 use spin::{Lazy, Mutex};
 
@@ -128,6 +129,7 @@ impl Scheduler {
 pub struct Proc {
     tasks: Vec<Task>,
     page_table: PageTable,
+    cwd: OwnedPath,
 }
 
 impl Proc {
@@ -140,7 +142,13 @@ impl Proc {
         Proc {
             tasks: Vec::new(),
             page_table,
+            cwd: OwnedPath::from("/"),
         }
+    }
+
+    /// Get the current working directory
+    pub fn cwd(&self) -> &OwnedPath {
+        &self.cwd
     }
 
     /// Create a new task and return the task id
