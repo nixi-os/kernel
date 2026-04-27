@@ -1,10 +1,12 @@
 //! Code for working with inodes
 
-use alloc::boxed::Box;
+use alloc::sync::Arc;
 
-
-/// An inode id points to an inode in the inode vector
+/// An inode id points to an inode globally in the inode cache
 pub type INodeId = usize;
+
+/// An inode number points to an inode within a specific file system
+pub type INodeNumber = usize;
 
 /// An allocator for inode id's
 pub struct INodeIdAllocator {
@@ -20,46 +22,42 @@ impl INodeIdAllocator {
     }
 
     /// Allocate a new inode id
-    pub fn alloc(&mut self) -> INodeId {
+    pub fn alloc_inode(&mut self) -> INodeId {
         self.id += 1;
 
         self.id
     }
 }
 
-/// An inode is a node in the virtual file system
+/// An inode is a node in the virtual file system. The inode can be backed by any file system implementation
+#[derive(Clone)]
 pub struct INode {
-    kind: INodeKind,
+    pub fs: Arc<dyn FileSystem + Send + Sync>,
+    pub inode_num: INodeNumber,
 }
 
 impl INode {
-    /// Returns a directory if the inode is a directory
-    pub fn as_dir<'a>(&'a self) -> Option<&'a dyn Directory> {
-        match &self.kind {
-            INodeKind::File(_) => None,
-            INodeKind::Directory(directory) => Some(directory.as_ref()),
+    /// Create a new inode
+    pub fn new(fs: Arc<dyn FileSystem + Send + Sync>, inode_num: INodeNumber) -> INode {
+        INode {
+            fs,
+            inode_num,
         }
+    }
+
+    /// Lookup an inode child
+    pub fn lookup(&self, name: &str) -> Option<INode> {
+        self.fs.lookup(self.inode_num, name)
     }
 }
 
-/// An inode can either be a file or a directory
-pub enum INodeKind {
-    File(Box<dyn File>),
-    Directory(Box<dyn Directory>),
-}
+/// An underlying file system
+pub trait FileSystem {
+    /// Lookup an inode child from parent
+    fn lookup(&self, parent: INodeNumber, name: &str) -> Option<INode>;
 
-/// A file is an I/O interface which can be written and read
-pub trait File {
-    // TODO: i/o functions
-}
-
-/// A directory contains directory entries, inodes are created on-demand
-pub trait Directory {
-    /// Resolve a relative path and return the corresponding inode id
-    fn resolve(&self, name: &str, alloc: &mut INodeIdAllocator) -> Option<INodeId>;
-
-    /// Create an inode from its inode id if it exists in the directory
-    fn create_inode(&self, id: INodeId) -> Option<INode>;
+    /// Mount an inode at the given mount point
+    fn mount(&self, parent: INodeNumber, name: &str, inode: INode);
 }
 
 

@@ -6,11 +6,22 @@ use inode::{INode, INodeId, INodeIdAllocator};
 
 use crate::kernel::scheduler;
 
+use crate::kernel::drivers::fs::rootfs::Root;
+
 use alloc::string::{String, ToString};
 use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 
 use core::str::Split;
 
+use spin::{Mutex, Lazy};
+
+/// The global virtual file system handle
+static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
+    let root = Root::new();
+
+    Mutex::new(VirtualFileSystem::new(INode::new(Arc::new(root), 0)))
+});
 
 /// A path identifies an inode in the file system
 pub struct OwnedPath {
@@ -68,8 +79,8 @@ impl Cache {
 /// The virtual file system
 pub struct VirtualFileSystem {
     inodes: BTreeMap<INodeId, INode>,
-    alloc: INodeIdAllocator,
     cache: Cache,
+    alloc: INodeIdAllocator,
     root: INodeId,
 }
 
@@ -78,8 +89,8 @@ impl VirtualFileSystem {
     pub fn new(root: INode) -> VirtualFileSystem {
         VirtualFileSystem {
             inodes: BTreeMap::from_iter([(0, root)]),
-            alloc: INodeIdAllocator::new(0),
             cache: Cache::new(),
+            alloc: INodeIdAllocator::new(0),
             root: 0,
         }
     }
@@ -94,11 +105,9 @@ impl VirtualFileSystem {
             if let Some(cached) = self.cache.get(current, name) {
                 current = cached;
             } else {
-                let dir = self.inodes[&current].as_dir()?;
+                let inode = self.inodes.get(&current)?.lookup(name)?;
 
-                let id = dir.resolve(name, &mut self.alloc)?;
-
-                let inode = dir.create_inode(id)?;
+                let id = self.alloc.alloc_inode();
 
                 self.inodes.insert(id, inode);
 

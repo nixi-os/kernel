@@ -1,6 +1,6 @@
 //! File system drivers
 
-pub mod ramfs;
+pub mod rootfs;
 
 
 
