@@ -1,5 +1,7 @@
 //! Code for working with inodes
 
+use super::error::VfsError;
+
 use alloc::sync::Arc;
 
 /// An inode id points to an inode globally in the inode cache
@@ -47,17 +49,20 @@ impl INode {
 
     /// Lookup an inode child
     pub fn lookup(&self, name: &str) -> Option<INode> {
-        self.fs.lookup(self.inode_num, name)
+        Arc::clone(&self.fs).lookup(self.inode_num, name)
     }
 }
 
 /// An underlying file system
 pub trait FileSystem {
     /// Lookup an inode child from parent
-    fn lookup(&self, parent: INodeNumber, name: &str) -> Option<INode>;
+    fn lookup(self: Arc<Self>, parent: INodeNumber, name: &str) -> Option<INode>;
 
     /// Mount an inode at the given mount point
-    fn mount(&self, parent: INodeNumber, name: &str, inode: INode);
+    fn mount(&self, parent: INodeNumber, name: &str, inode: INode) -> Result<(), VfsError>;
+
+    /// Read from an inode
+    fn read(&self, inode_num: INodeNumber, offset: u64, buffer: &mut [u8]) -> Result<(), VfsError>;
 }
 
 

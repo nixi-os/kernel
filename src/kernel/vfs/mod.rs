@@ -1,10 +1,9 @@
 //! The virtual file system
 
+pub mod error;
 pub mod inode;
 
 use inode::{INode, INodeId, INodeIdAllocator};
-
-use crate::kernel::scheduler;
 
 use crate::kernel::drivers::fs::rootfs::Root;
 
