@@ -25,8 +25,8 @@ impl Root {
 }
 
 impl FileSystem for Root {
-    fn lookup(self: Arc<Root>, _parent: INodeNumber, name: &str) -> Option<INode> {
-        self.mounts.read().get(name).cloned()
+    fn lookup(self: Arc<Root>, _parent: INodeNumber, name: &str) -> Result<INode, VfsError> {
+        self.mounts.read().get(name).cloned().ok_or(VfsError::NoSuchFile)
     }
 
     fn mount(&self, _parent: INodeNumber, name: &str, inode: INode) -> Result<(), VfsError> {

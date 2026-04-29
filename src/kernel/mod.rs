@@ -13,8 +13,6 @@ use scheduler::{TaskDescriptor, context};
 #[inline(never)]
 extern "C" fn task1() -> ! {
     unsafe {
-        // TODO: after the syscall, we can see that the CS(code segment) and SS(stack segment) are
-        // wrong, they should be cs: 0x1b, ss: 0x23, instead they are cs: 0xb, ss: 0x13
         core::arch::asm!(
             "syscall",
             in("rax") 0x123,
@@ -27,12 +25,16 @@ extern "C" fn task1() -> ! {
 pub fn entry() -> ! {
     tty::init();
 
+    // TODO: we should rewrite most of the scheduler before we continue with more file system implementations
+
     scheduler::with_scheduler(|scheduler| {
         let pid = scheduler.create_proc().expect("unable to create init process");
         let tid = scheduler.create_task(pid, task1 as *const () as u64, 3).expect("unable to create init task");
 
         scheduler.current = Some(TaskDescriptor::new(pid, tid));
     });
+
+    let _ = vfs::init();
 
     context::enter_usermode();
 }

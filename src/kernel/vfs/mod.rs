@@ -3,9 +3,11 @@
 pub mod error;
 pub mod inode;
 
-use inode::{INode, INodeId, INodeIdAllocator};
+use inode::{INode, INodeId, INodeIdAllocator, FileSystem};
+use error::VfsError;
 
 use crate::kernel::drivers::fs::rootfs::Root;
+use crate::kernel::drivers::fs::procfs::ProcFs;
 
 use alloc::string::{String, ToString};
 use alloc::collections::BTreeMap;
@@ -17,10 +19,23 @@ use spin::{Mutex, Lazy};
 
 /// The global virtual file system handle
 static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
-    let root = Root::new();
+    let rootfs = Root::new();
 
-    Mutex::new(VirtualFileSystem::new(INode::new(Arc::new(root), 0)))
+    Mutex::new(VirtualFileSystem::new(INode::new(rootfs.root(), Arc::new(rootfs))))
 });
+
+pub fn init() -> Result<(), VfsError> {
+    let mut vfs = VFS.lock();
+    let root = vfs.root();
+
+    let procfs = ProcFs::default();
+
+    root.mount("proc", INode::new(procfs.root(), Arc::new(procfs)))?;
+
+    crate::log!("resolved '/proc/0': {:?}", vfs.resolve(OwnedPath::from("/proc/0")));
+
+    Ok(())
+}
 
 /// A path identifies an inode in the file system
 pub struct OwnedPath {
@@ -94,8 +109,13 @@ impl VirtualFileSystem {
         }
     }
 
+    /// Return a reference to the root inode
+    pub fn root(&self) -> &INode {
+        self.inodes.get(&self.root).expect("root must always be in cache")
+    }
+
     /// Resolve a path and return corresponding inode id
-    pub fn resolve(&mut self, path: OwnedPath) -> Option<INodeId> {
+    pub fn resolve(&mut self, path: OwnedPath) -> Result<INodeId, VfsError> {
         let mut current = path.is_absolute()
             .then_some(self.root)
             .unwrap_or_else(|| todo!("get the current working directory from the process"));
@@ -104,7 +124,7 @@ impl VirtualFileSystem {
             if let Some(cached) = self.cache.get(current, name) {
                 current = cached;
             } else {
-                let inode = self.inodes.get(&current)?.lookup(name)?;
+                let inode = self.inodes.get(&current).ok_or(VfsError::NoSuchFile)?.lookup(name)?;
 
                 let id = self.alloc.alloc_inode();
 
@@ -116,7 +136,7 @@ impl VirtualFileSystem {
             }
         }
 
-        Some(current)
+        Ok(current)
     }
 }
 

@@ -26,8 +26,12 @@ impl ProcOffset {
 pub struct ProcFs;
 
 impl FileSystem for ProcFs {
-    fn lookup(self: Arc<ProcFs>, _parent: INodeNumber, name: &str) -> Option<INode> {
-        Some(INode::new(self as Arc<dyn FileSystem + Send + Sync>, name.parse().ok()?))
+    fn lookup(self: Arc<ProcFs>, parent: INodeNumber, name: &str) -> Result<INode, VfsError> {
+        if parent == 0 {
+            Ok(INode::new(name.parse().ok().ok_or(VfsError::NoSuchFile)?, self as Arc<dyn FileSystem + Send + Sync>))
+        } else {
+            Err(VfsError::NoSuchFile)
+        }
     }
 
     fn mount(&self, _parent: INodeNumber, _name: &str, _inode: INode) -> Result<(), VfsError> {

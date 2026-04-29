@@ -40,7 +40,7 @@ pub struct INode {
 
 impl INode {
     /// Create a new inode
-    pub fn new(fs: Arc<dyn FileSystem + Send + Sync>, inode_num: INodeNumber) -> INode {
+    pub fn new(inode_num: INodeNumber, fs: Arc<dyn FileSystem + Send + Sync>) -> INode {
         INode {
             fs,
             inode_num,
@@ -48,21 +48,29 @@ impl INode {
     }
 
     /// Lookup an inode child
-    pub fn lookup(&self, name: &str) -> Option<INode> {
+    pub fn lookup(&self, name: &str) -> Result<INode, VfsError> {
         Arc::clone(&self.fs).lookup(self.inode_num, name)
+    }
+
+    /// Mount an inode
+    pub fn mount(&self, name: &str, inode: INode) -> Result<(), VfsError> {
+        Arc::clone(&self.fs).mount(self.inode_num, name, inode)
     }
 }
 
 /// An underlying file system
 pub trait FileSystem {
     /// Lookup an inode child from parent
-    fn lookup(self: Arc<Self>, parent: INodeNumber, name: &str) -> Option<INode>;
+    fn lookup(self: Arc<Self>, parent: INodeNumber, name: &str) -> Result<INode, VfsError>;
 
     /// Mount an inode at the given mount point
     fn mount(&self, parent: INodeNumber, name: &str, inode: INode) -> Result<(), VfsError>;
 
     /// Read from an inode
     fn read(&self, inode_num: INodeNumber, offset: u64, buffer: &mut [u8]) -> Result<(), VfsError>;
+
+    /// Return the root inode number, the default implementation will always return inode number zero
+    fn root(&self) -> INodeNumber { 0 }
 }
 
 

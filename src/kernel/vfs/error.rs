@@ -4,8 +4,13 @@
 /// Virtual file system errors
 #[derive(Debug)]
 pub enum VfsError {
+    /// The offset is beyond EOF
     OutOfBounds,
+
+    /// The requested file does not exist
     NoSuchFile,
+
+    /// File system doesn't support mounting inodes
     UnMountable,
 }
 
