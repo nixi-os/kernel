@@ -32,7 +32,7 @@ pub fn init() -> Result<(), VfsError> {
 
     root.mount("proc", INode::new(procfs.root(), Arc::new(procfs)))?;
 
-    crate::log!("resolved '/proc/0': {:?}", vfs.resolve(OwnedPath::from("/proc/0")));
+    crate::log!("resolved '/proc/1/cwd': {:?}", vfs.resolve(OwnedPath::from("/proc/1/cwd")));
 
     Ok(())
 }
