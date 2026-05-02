@@ -12,6 +12,9 @@ pub enum VfsError {
 
     /// File system doesn't support mounting inodes
     UnMountable,
+
+    /// The bitmap allocator for file descriptor and inode id's failed to find a free id
+    OutOfId,
 }
 
 impl core::fmt::Display for VfsError {
@@ -20,6 +23,7 @@ impl core::fmt::Display for VfsError {
             VfsError::OutOfBounds => f.write_str("out of bounds"),
             VfsError::NoSuchFile => f.write_str("no such file"),
             VfsError::UnMountable => f.write_str("file system doesn't support mounting"),
+            VfsError::OutOfId => f.write_str("out of id"),
         }
     }
 }

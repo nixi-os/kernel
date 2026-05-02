@@ -15,7 +15,6 @@ mod helpers;
 
 use uefi::prelude::*;
 
-#[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     if let Some(location) = info.location() {
@@ -27,13 +26,10 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-// TODO: implement paging so that we can run usermode processes without causing page fault as a
-// result of processor trying to fetch instruction when its located inside memory marked as supervisor-only
-
 #[entry]
 fn main() -> Status {
     if let Err(err) = boot::boot() {
-        error!("error: {}", err);
+        error!("fatal boot error: {}", err);
     }
 
     loop {}

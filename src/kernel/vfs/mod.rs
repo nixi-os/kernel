@@ -2,8 +2,10 @@
 
 pub mod error;
 pub mod inode;
+pub mod fd;
 
-use inode::{INode, INodeId, INodeIdAllocator, FileSystem};
+use fd::{FileDescriptor, FileDescriptorId};
+use inode::{INode, INodeId, FileSystem};
 use error::VfsError;
 
 use crate::kernel::drivers::fs::rootfs::Root;
@@ -24,17 +26,48 @@ static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
     Mutex::new(VirtualFileSystem::new(INode::new(rootfs.root(), Arc::new(rootfs))))
 });
 
+/// Initialize the virtual file system
 pub fn init() -> Result<(), VfsError> {
-    let mut vfs = VFS.lock();
+    let vfs = VFS.lock();
     let root = vfs.root();
 
     let procfs = ProcFs::default();
 
     root.mount("proc", INode::new(procfs.root(), Arc::new(procfs)))?;
 
-    crate::log!("resolved '/proc/1/cwd': {:?}", vfs.resolve(OwnedPath::from("/proc/1/cwd")));
-
     Ok(())
+}
+
+/// The id allocator is a bitmap allocator used for both inodes and file descriptors
+pub struct IdAllocator {
+    bitmap: [u128; 512],
+}
+
+impl IdAllocator {
+    /// Create a new id allocator
+    pub fn new() -> IdAllocator {
+        IdAllocator {
+            bitmap: [0; 512],
+        }
+    }
+
+    /// Allocate a new id
+    pub fn alloc(&mut self) -> Result<usize, VfsError> {
+        for (index, chunk) in self.bitmap.iter_mut().enumerate() {
+            if chunk.leading_ones() < u128::BITS {
+                *chunk |= 1u128 << chunk.leading_ones();
+
+                return Ok((index * u128::BITS as usize) + (chunk.leading_ones() as usize - 1));
+            }
+        }
+
+        Err(VfsError::OutOfId)
+    }
+
+    /// Free an id
+    pub fn free(&mut self, id: usize) {
+        self.bitmap[id / u128::BITS as usize] &= !(1u128 << (id % u128::BITS as usize));
+    }
 }
 
 /// A path identifies an inode in the file system
@@ -90,11 +123,28 @@ impl Cache {
     }
 }
 
+/// Allocators in the virtual file system
+pub struct Allocators {
+    inode: IdAllocator,
+    fd: IdAllocator,
+}
+
+impl Allocators {
+    /// Create new allocators for the virtual file system
+    pub fn new() -> Allocators {
+        Allocators {
+            inode: IdAllocator::new(),
+            fd: IdAllocator::new(),
+        }
+    }
+}
+
 /// The virtual file system
 pub struct VirtualFileSystem {
+    descriptors: BTreeMap<FileDescriptorId, FileDescriptor>,
     inodes: BTreeMap<INodeId, INode>,
     cache: Cache,
-    alloc: INodeIdAllocator,
+    alloc: Allocators,
     root: INodeId,
 }
 
@@ -102,9 +152,10 @@ impl VirtualFileSystem {
     /// Create a new virtual file system with a root inode
     pub fn new(root: INode) -> VirtualFileSystem {
         VirtualFileSystem {
+            descriptors: BTreeMap::new(),
             inodes: BTreeMap::from_iter([(0, root)]),
             cache: Cache::new(),
-            alloc: INodeIdAllocator::new(0),
+            alloc: Allocators::new(),
             root: 0,
         }
     }
@@ -112,6 +163,16 @@ impl VirtualFileSystem {
     /// Return a reference to the root inode
     pub fn root(&self) -> &INode {
         self.inodes.get(&self.root).expect("root must always be in cache")
+    }
+
+    /// Open a file descriptor and return its id
+    pub fn open(&mut self, path: OwnedPath) -> Result<FileDescriptorId, VfsError> {
+        let inode_id = self.resolve(path)?;
+        let fd_id = self.alloc.fd.alloc()?;
+
+        self.descriptors.insert(fd_id, FileDescriptor::new(inode_id, 0));
+
+        Ok(fd_id)
     }
 
     /// Resolve a path and return corresponding inode id
@@ -126,7 +187,7 @@ impl VirtualFileSystem {
             } else {
                 let inode = self.inodes.get(&current).ok_or(VfsError::NoSuchFile)?.lookup(name)?;
 
-                let id = self.alloc.alloc_inode();
+                let id = self.alloc.inode.alloc()?;
 
                 self.inodes.insert(id, inode);
 

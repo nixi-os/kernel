@@ -25,7 +25,10 @@ extern "C" fn task1() -> ! {
 pub fn entry() -> ! {
     tty::init();
 
-    // TODO: we should rewrite most of the scheduler before we continue with more file system implementations
+    // TODO: work we should do before we continue with more file systems:
+    // - Make the virtual file system have reference counting for all inodes, so that once an inode
+    // no longer has any file handles attached to it, we evict it
+    // - Rewrite the scheduler, specifically process and task handling
 
     scheduler::with_scheduler(|scheduler| {
         let pid = scheduler.create_proc().expect("unable to create init process");

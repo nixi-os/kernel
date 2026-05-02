@@ -39,10 +39,6 @@ pub struct DescriptorTablePointer {
 /// Initialize the tables
 pub fn init() {
     unsafe {
-        log!("idt: {:#x?}", &raw const TABLES.idt);
-        log!("gdt: {:#x?}", &raw const TABLES.gdt);
-        log!("tss: {:#x?}", &raw const TABLES.tss);
-
         (&raw mut TABLES.gdt).init_with_tss(&raw const TABLES.tss as u64);
 
         gdt::load(&DescriptorTablePointer {
@@ -83,6 +79,8 @@ pub fn init() {
             limit: core::mem::size_of::<InterruptDescriptorTable>() as u16,
             base: &raw const TABLES.idt as u64,
         });
+
+        log!("initialized IDT, GDT and TSS");
     }
 }
 

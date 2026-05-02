@@ -10,26 +10,12 @@ pub type INodeId = usize;
 /// An inode number points to an inode within a specific file system
 pub type INodeNumber = usize;
 
-/// An allocator for inode id's
-pub struct INodeIdAllocator {
-    id: INodeId,
-}
-
-impl INodeIdAllocator {
-    /// Create a new inode id allocator with a starting id
-    pub fn new(id: INodeId) -> INodeIdAllocator {
-        INodeIdAllocator {
-            id,
-        }
-    }
-
-    /// Allocate a new inode id
-    pub fn alloc_inode(&mut self) -> INodeId {
-        self.id += 1;
-
-        self.id
-    }
-}
+// TODO: the inodes should hold a last accessed timestamp in order to do LRU eviction to evict the
+// last used inodes
+//
+// NOTE: i think the best combination for our virtual file system will be to have a combination of
+// LRU eviction to remove old inodes, and generation numbers embedded in inode numbers to ensure
+// that old inode numbers dont get reinterpreted as the wrong file if the old file is deleted
 
 /// An inode is a node in the virtual file system. The inode can be backed by any file system implementation
 #[derive(Clone)]

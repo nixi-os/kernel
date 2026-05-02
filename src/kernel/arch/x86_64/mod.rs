@@ -22,17 +22,14 @@ pub fn init() {
 
         registers::xcr0_set(XCr0Flags::X87_FPU | XCr0Flags::SSE_STATE);
 
-        log!("feature enabled: FSGSBASE and XSAVE");
+        log!("enabled FSGSBASE and XSAVE");
     } else {
         panic!("processor must support FSGSBASE and XSAVE");
     }
 
     msr::write_msr(ModelSpecificRegister::IA32_LSTAR, syscall::syscall_handler as *const () as u64);
 
-    // NOTE: this works, i thought 0x18 was wrong, i need to figure out why it works lol
     msr::write_msr(ModelSpecificRegister::IA32_STAR, (0x18 << 48) | (0x08 << 32));
-
-    log!("fmask: {:064b}", msr::read_msr(ModelSpecificRegister::IA32_FMASK));
 
     msr::update_msr(ModelSpecificRegister::IA32_EFER, |efer| efer | 1);
 
