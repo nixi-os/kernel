@@ -17,6 +17,7 @@ use alloc::sync::Arc;
 
 use core::str::Split;
 
+use kernel_utils::bitmap::Bitmap;
 use spin::{Mutex, Lazy};
 
 /// The global virtual file system handle
@@ -36,38 +37,6 @@ pub fn init() -> Result<(), VfsError> {
     root.mount("proc", INode::new(procfs.root(), Arc::new(procfs)))?;
 
     Ok(())
-}
-
-/// The id allocator is a bitmap allocator used for both inodes and file descriptors
-pub struct IdAllocator {
-    bitmap: [u128; 512],
-}
-
-impl IdAllocator {
-    /// Create a new id allocator
-    pub fn new() -> IdAllocator {
-        IdAllocator {
-            bitmap: [0; 512],
-        }
-    }
-
-    /// Allocate a new id
-    pub fn alloc(&mut self) -> Result<usize, VfsError> {
-        for (index, chunk) in self.bitmap.iter_mut().enumerate() {
-            if chunk.leading_ones() < u128::BITS {
-                *chunk |= 1u128 << chunk.leading_ones();
-
-                return Ok((index * u128::BITS as usize) + (chunk.leading_ones() as usize - 1));
-            }
-        }
-
-        Err(VfsError::OutOfId)
-    }
-
-    /// Free an id
-    pub fn free(&mut self, id: usize) {
-        self.bitmap[id / u128::BITS as usize] &= !(1u128 << (id % u128::BITS as usize));
-    }
 }
 
 /// A path identifies an inode in the file system
@@ -123,18 +92,20 @@ impl Cache {
     }
 }
 
-/// Allocators in the virtual file system
+/// Allocators in the virtual file system.
+///
+/// There are 65536 inode id's and 16384 file descriptors.
 pub struct Allocators {
-    inode: IdAllocator,
-    fd: IdAllocator,
+    inode: Bitmap<512>,
+    fd: Bitmap<128>,
 }
 
 impl Allocators {
     /// Create new allocators for the virtual file system
     pub fn new() -> Allocators {
         Allocators {
-            inode: IdAllocator::new(),
-            fd: IdAllocator::new(),
+            inode: Bitmap::new(),
+            fd: Bitmap::new(),
         }
     }
 }
@@ -168,7 +139,7 @@ impl VirtualFileSystem {
     /// Open a file descriptor and return its id
     pub fn open(&mut self, path: OwnedPath) -> Result<FileDescriptorId, VfsError> {
         let inode_id = self.resolve(path)?;
-        let fd_id = self.alloc.fd.alloc()?;
+        let fd_id = self.alloc.fd.alloc().ok_or(VfsError::OutOfId)?;
 
         self.descriptors.insert(fd_id, FileDescriptor::new(inode_id, 0));
 
@@ -187,7 +158,7 @@ impl VirtualFileSystem {
             } else {
                 let inode = self.inodes.get(&current).ok_or(VfsError::NoSuchFile)?.lookup(name)?;
 
-                let id = self.alloc.inode.alloc()?;
+                let id = self.alloc.inode.alloc().ok_or(VfsError::OutOfId)?;
 
                 self.inodes.insert(id, inode);
 
