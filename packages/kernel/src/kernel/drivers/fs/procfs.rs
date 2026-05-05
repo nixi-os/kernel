@@ -54,12 +54,12 @@ impl FileSystem for ProcFs {
     fn lookup(self: Arc<ProcFs>, parent: INodeNumber, name: &str) -> Result<INode, VfsError> {
         if parent.num & ProcPathFlags::PROC == 0 {
             let pid = name.parse::<u32>().ok().filter(|pid| *pid > 0).ok_or(VfsError::NoSuchFile)? as usize;
-            let inode_num = INodeNumber::new((pid << 32) | ProcPathFlags::PROC);
+            let inode_num = INodeNumber::new((pid << 32) | ProcPathFlags::PROC, false);
 
             Ok(INode::new(inode_num, self as Arc<dyn FileSystem + Send + Sync>))
         } else if parent.num & ProcPathFlags::FILE == 0 {
             let proc_file = ProcFile::new(name)?;
-            let inode_num = INodeNumber::new(parent.num | ((proc_file as usize) << 1));
+            let inode_num = INodeNumber::new(parent.num | ((proc_file as usize) << 1), false);
 
             Ok(INode::new(inode_num, self as Arc<dyn FileSystem + Send + Sync>))
         } else {
@@ -67,8 +67,8 @@ impl FileSystem for ProcFs {
         }
     }
 
-    fn mount(&self, _parent: INodeNumber, _name: &str, _inode: INode) -> Result<(), VfsError> {
-        Err(VfsError::UnMountable)
+    fn create_dir(self: Arc<ProcFs>, _parent: INodeNumber, _name: &str) -> Result<(), VfsError> {
+        Err(VfsError::Unsupported)
     }
 
     fn read(&self, inode_num: INodeNumber, offset: u64, buffer: &mut [u8]) -> Result<(), VfsError> {

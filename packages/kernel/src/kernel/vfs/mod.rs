@@ -30,11 +30,26 @@ static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
 /// Initialize the virtual file system
 pub fn init() -> Result<(), VfsError> {
     let vfs = VFS.lock();
-    let root = vfs.root();
+
+    // TODO: in the future the file systems should all be mounted by userspace programs, eg. an init process
+    //
+    // this is only for testing
+
+    /*
+    let root_fd = vfs.open(OwnedPath::from("/"))?;
+
+    vfs.create_dir(root_fd, "proc");
+
+    let proc_fd = vfs.open
+
+    vfs.mount();
+
+    // TODO: we must create the /proc directory before we can mount to it
 
     let procfs = ProcFs::default();
 
     root.mount("proc", INode::new(procfs.root(), Arc::new(procfs)))?;
+    */
 
     Ok(())
 }
@@ -113,6 +128,7 @@ impl Allocators {
 /// The virtual file system
 pub struct VirtualFileSystem {
     descriptors: BTreeMap<FileDescriptorId, FileDescriptor>,
+    mounts: BTreeMap<INodeId, INodeId>,
     inodes: BTreeMap<INodeId, INode>,
     cache: Cache,
     alloc: Allocators,
@@ -124,6 +140,7 @@ impl VirtualFileSystem {
     pub fn new(root: INode) -> VirtualFileSystem {
         VirtualFileSystem {
             descriptors: BTreeMap::new(),
+            mounts: BTreeMap::new(),
             inodes: BTreeMap::from_iter([(0, root)]),
             cache: Cache::new(),
             alloc: Allocators::new(),
@@ -131,10 +148,8 @@ impl VirtualFileSystem {
         }
     }
 
-    /// Return a reference to the root inode
-    pub fn root(&self) -> &INode {
-        self.inodes.get(&self.root).expect("root must always be in cache")
-    }
+    /// Return the root inode id
+    pub fn root(&self) -> INodeId { self.root }
 
     /// Open a file descriptor and return its id
     pub fn open(&mut self, path: OwnedPath) -> Result<FileDescriptorId, VfsError> {
@@ -146,6 +161,23 @@ impl VirtualFileSystem {
         Ok(fd_id)
     }
 
+    /// Create a subdirectory under parent
+    pub fn create_dir(&mut self, parent: FileDescriptorId, name: &str) -> Result<(), VfsError> {
+        let descriptor = self.descriptors.get(&parent).ok_or(VfsError::NoSuchFile)?;
+
+        self.inodes.get(&descriptor.inode_id)
+            .ok_or(VfsError::NoSuchFile)?
+            .create_dir(name)
+    }
+
+    // TODO: we should turn file descriptor id and inode id into separate structs instead of just
+    // renaming them with types. this is because there can be confusion between them
+
+    /// Mount a root inode at a mount point
+    pub fn mount(&mut self, mount_point: INodeId, root: INodeId) {
+        self.mounts.insert(mount_point, root);
+    }
+
     /// Resolve a path and return corresponding inode id
     pub fn resolve(&mut self, path: OwnedPath) -> Result<INodeId, VfsError> {
         let mut current = path.is_absolute()
@@ -153,7 +185,9 @@ impl VirtualFileSystem {
             .unwrap_or_else(|| todo!("get the current working directory from the process"));
 
         for name in path.components().filter(|component| !component.is_empty()) {
-            if let Some(cached) = self.cache.get(current, name) {
+            if let Some(root) = self.mounts.get(&current) {
+                current = *root;
+            } else if let Some(cached) = self.cache.get(current, name) {
                 current = cached;
             } else {
                 let inode = self.inodes.get(&current).ok_or(VfsError::NoSuchFile)?.lookup(name)?;

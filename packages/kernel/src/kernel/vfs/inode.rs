@@ -16,21 +16,13 @@ pub struct INodeNumber {
 }
 
 impl INodeNumber {
-    /// Create a new inode number without a generation number
+    /// Create a new inode number, if generation is true then a generation number will be used
     ///
     /// SAFETY: inode numbers MUST be deterministic OR one time use if you don't use a generation number
-    pub fn new(num: usize) -> INodeNumber {
+    pub fn new(num: usize, generation: bool) -> INodeNumber {
         INodeNumber {
             num,
-            generation: None,
-        }
-    }
-
-    /// Create a new inode number with a generation number
-    pub fn new_with_generation(num: usize) -> INodeNumber {
-        INodeNumber {
-            num,
-            generation: Some(0),
+            generation: generation.then(|| 1),
         }
     }
 
@@ -50,6 +42,21 @@ impl INodeNumber {
 // NOTE: i think the best combination for our virtual file system will be to have a combination of
 // LRU eviction to remove old inodes, and generation numbers embedded in inode numbers to ensure
 // that old inode numbers dont get reinterpreted as the wrong file if the old file is deleted
+//
+// TODO: we should have a reference count on the inode, so that its evicted from the inode cache
+// once there is no references left. Currently this would only evict files which are part of
+// some file systems, this is due to the fact that some file systems only act as a "root" for mount
+// points, so it will store the inodes and therefore stop the inode reference count from reaching
+// zero. This is not an issue.
+//
+// For on-disk file systems this is a non-issue, eg. with fat32, ext4 or anything similar we do not
+// need to store the inodes, so the reference count would be able to reach zero. This applies
+// to virtually all file systems which do not support mount points. For file systems which DO
+// support mount points, the mount points will by design stay in memory and therefore never reach a
+// reference count of zero.
+//
+// the reference count should be incremented on each clone, specifically we should create our own
+// Clone implementation to have this work.
 
 /// An inode is a node in the virtual file system. The inode can be backed by any file system implementation
 #[derive(Clone)]
@@ -72,9 +79,9 @@ impl INode {
         Arc::clone(&self.fs).lookup(self.inode_num, name)
     }
 
-    /// Mount an inode
-    pub fn mount(&self, name: &str, inode: INode) -> Result<(), VfsError> {
-        Arc::clone(&self.fs).mount(self.inode_num, name, inode)
+    /// Create a subdirectory
+    pub fn create_dir(&self, name: &str) -> Result<(), VfsError> {
+        Arc::clone(&self.fs).create_dir(self.inode_num, name)
     }
 }
 
@@ -83,14 +90,14 @@ pub trait FileSystem {
     /// Lookup an inode child from parent
     fn lookup(self: Arc<Self>, parent: INodeNumber, name: &str) -> Result<INode, VfsError>;
 
-    /// Mount an inode at the given mount point
-    fn mount(&self, parent: INodeNumber, name: &str, inode: INode) -> Result<(), VfsError>;
+    /// Create a subdirectory under parent
+    fn create_dir(self: Arc<Self>, parent: INodeNumber, name: &str) -> Result<(), VfsError>;
 
     /// Read from an inode
     fn read(&self, inode_num: INodeNumber, offset: u64, buffer: &mut [u8]) -> Result<(), VfsError>;
 
     /// Return the root inode number, the default implementation will always return inode number zero
-    fn root(&self) -> INodeNumber { INodeNumber::new(0) }
+    fn root(&self) -> INodeNumber { INodeNumber::new(0, false) }
 }
 
 

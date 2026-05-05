@@ -10,11 +10,11 @@ pub enum VfsError {
     /// The requested file does not exist
     NoSuchFile,
 
-    /// File system doesn't support mounting inodes
-    UnMountable,
-
     /// The bitmap allocator for file descriptor and inode id's failed to find a free id
     OutOfId,
+
+    /// Unsupported feature
+    Unsupported,
 }
 
 impl core::fmt::Display for VfsError {
@@ -22,8 +22,8 @@ impl core::fmt::Display for VfsError {
         match self {
             VfsError::OutOfBounds => f.write_str("out of bounds"),
             VfsError::NoSuchFile => f.write_str("no such file"),
-            VfsError::UnMountable => f.write_str("file system doesn't support mounting"),
             VfsError::OutOfId => f.write_str("out of id"),
+            VfsError::Unsupported => f.write_str("unsupported feature"),
         }
     }
 }
