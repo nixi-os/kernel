@@ -12,7 +12,7 @@ use crate::kernel::drivers::fs::rootfs::Root;
 use crate::kernel::drivers::fs::procfs::ProcFs;
 
 use alloc::string::{String, ToString};
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 
 use core::str::Split;
@@ -29,27 +29,22 @@ static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
 
 /// Initialize the virtual file system
 pub fn init() -> Result<(), VfsError> {
-    let vfs = VFS.lock();
-
     // TODO: in the future the file systems should all be mounted by userspace programs, eg. an init process
     //
     // this is only for testing
 
-    /*
-    let root_fd = vfs.open(OwnedPath::from("/"))?;
+    let mut vfs = VFS.lock();
+    let root = vfs.root();
 
-    vfs.create_dir(root_fd, "proc");
+    vfs.create_dir(root, "proc")?;
 
-    let proc_fd = vfs.open
-
-    vfs.mount();
-
-    // TODO: we must create the /proc directory before we can mount to it
+    let mount_point = vfs.resolve(OwnedPath::from("/proc"))?;
 
     let procfs = ProcFs::default();
 
-    root.mount("proc", INode::new(procfs.root(), Arc::new(procfs)))?;
-    */
+    let inode_id = vfs.cache.insert_inode(INode::new(procfs.root(), Arc::new(procfs)));
+
+    vfs.mount(mount_point, inode_id);
 
     Ok(())
 }
@@ -79,49 +74,58 @@ impl OwnedPath {
     }
 }
 
-/// A cache of parent and name pairs to inode id's
-pub struct Cache {
-    cache: BTreeMap<INodeId, BTreeMap<String, INodeId>>,
+// TODO: maybe we should generalize the LRU cache so that we can have separate ones for inodes and dentries
+
+/// A LRU cache for inodes and dentry
+pub struct LruCache {
+    inodes: BTreeMap<INodeId, INode>,
+    dentry: BTreeMap<INodeId, BTreeMap<String, INodeId>>,
+    order: VecDeque<INodeId>,
+    inode_id: INodeId,
+    capacity: usize,
 }
 
-impl Cache {
-    /// Create a new cache
-    pub fn new() -> Cache {
-        Cache {
-            cache: BTreeMap::new(),
+impl LruCache {
+    /// Create a new LRU cache for inodes and dentry
+    pub fn new(root: INode, capacity: usize) -> LruCache {
+        LruCache {
+            inodes: BTreeMap::from_iter([(INodeId::new(0), root)]),
+            dentry: BTreeMap::new(),
+            order: VecDeque::new(),
+            inode_id: INodeId::new(0),
+            capacity,
+        }
+    }
+
+    // TODO: we should evict in the insert function
+
+    /// Insert an inode into the LRU cache and return the inode id
+    pub fn insert_inode(&mut self, inode: INode) -> INodeId {
+        let inode_id = self.inode_id.increment_next();
+
+        self.inodes.insert(inode_id, inode);
+        self.order.push_front(inode_id);
+
+        inode_id
+    }
+
+    /// Return an inode if inode id exists
+    pub fn get_inode(&self, inode_id: INodeId) -> Option<&INode> {
+        self.inodes.get(&inode_id)
+    }
+
+    /// Insert an inode id under its parent and name
+    pub fn insert_dentry(&mut self, parent: INodeId, name: String, inode: INodeId) {
+        if let Some(parent) = self.dentry.get_mut(&parent) {
+            parent.insert(name, inode);
+        } else {
+            self.dentry.insert(parent, BTreeMap::from([(name, inode)]));
         }
     }
 
     /// Get an inode id from its parent and name
-    pub fn get(&self, parent: INodeId, name: &str) -> Option<INodeId> {
-        self.cache.get(&parent).and_then(|parent| parent.get(name)).copied()
-    }
-
-    /// Insert an inode id under its parent and name
-    pub fn insert(&mut self, parent: INodeId, name: String, inode: INodeId) {
-        if let Some(parent) = self.cache.get_mut(&parent) {
-            parent.insert(name, inode);
-        } else {
-            self.cache.insert(parent, BTreeMap::from([(name, inode)]));
-        }
-    }
-}
-
-/// Allocators in the virtual file system.
-///
-/// There are 65536 inode id's and 16384 file descriptors.
-pub struct Allocators {
-    inode: Bitmap<512>,
-    fd: Bitmap<128>,
-}
-
-impl Allocators {
-    /// Create new allocators for the virtual file system
-    pub fn new() -> Allocators {
-        Allocators {
-            inode: Bitmap::new(),
-            fd: Bitmap::new(),
-        }
+    pub fn get_dentry(&self, parent: INodeId, name: &str) -> Option<INodeId> {
+        self.dentry.get(&parent).and_then(|parent| parent.get(name)).copied()
     }
 }
 
@@ -129,9 +133,8 @@ impl Allocators {
 pub struct VirtualFileSystem {
     descriptors: BTreeMap<FileDescriptorId, FileDescriptor>,
     mounts: BTreeMap<INodeId, INodeId>,
-    inodes: BTreeMap<INodeId, INode>,
-    cache: Cache,
-    alloc: Allocators,
+    cache: LruCache,
+    fd_alloc: Bitmap<128>,
     root: INodeId,
 }
 
@@ -141,10 +144,9 @@ impl VirtualFileSystem {
         VirtualFileSystem {
             descriptors: BTreeMap::new(),
             mounts: BTreeMap::new(),
-            inodes: BTreeMap::from_iter([(0, root)]),
-            cache: Cache::new(),
-            alloc: Allocators::new(),
-            root: 0,
+            cache: LruCache::new(root, 100),
+            fd_alloc: Bitmap::new(),
+            root: INodeId::new(0),
         }
     }
 
@@ -154,7 +156,7 @@ impl VirtualFileSystem {
     /// Open a file descriptor and return its id
     pub fn open(&mut self, path: OwnedPath) -> Result<FileDescriptorId, VfsError> {
         let inode_id = self.resolve(path)?;
-        let fd_id = self.alloc.fd.alloc().ok_or(VfsError::OutOfId)?;
+        let fd_id = FileDescriptorId::new(self.fd_alloc.alloc().ok_or(VfsError::OutOfId)?);
 
         self.descriptors.insert(fd_id, FileDescriptor::new(inode_id, 0));
 
@@ -162,16 +164,14 @@ impl VirtualFileSystem {
     }
 
     /// Create a subdirectory under parent
-    pub fn create_dir(&mut self, parent: FileDescriptorId, name: &str) -> Result<(), VfsError> {
-        let descriptor = self.descriptors.get(&parent).ok_or(VfsError::NoSuchFile)?;
-
-        self.inodes.get(&descriptor.inode_id)
+    pub fn create_dir(&mut self, parent: INodeId, name: &str) -> Result<(), VfsError> {
+        self.cache.get_inode(parent)
             .ok_or(VfsError::NoSuchFile)?
             .create_dir(name)
     }
 
-    // TODO: we should turn file descriptor id and inode id into separate structs instead of just
-    // renaming them with types. this is because there can be confusion between them
+    // TODO: mount should ping the mount point and root inodes, so that they wont get evicted
+    // before they are unmounted.
 
     /// Mount a root inode at a mount point
     pub fn mount(&mut self, mount_point: INodeId, root: INodeId) {
@@ -187,18 +187,16 @@ impl VirtualFileSystem {
         for name in path.components().filter(|component| !component.is_empty()) {
             if let Some(root) = self.mounts.get(&current) {
                 current = *root;
-            } else if let Some(cached) = self.cache.get(current, name) {
+            } else if let Some(cached) = self.cache.get_dentry(current, name) {
                 current = cached;
             } else {
-                let inode = self.inodes.get(&current).ok_or(VfsError::NoSuchFile)?.lookup(name)?;
+                let inode = self.cache.get_inode(current).ok_or(VfsError::NoSuchFile)?.lookup(name)?;
 
-                let id = self.alloc.inode.alloc().ok_or(VfsError::OutOfId)?;
+                let inode_id = self.cache.insert_inode(inode);
 
-                self.inodes.insert(id, inode);
+                self.cache.insert_dentry(current, name.to_string(), inode_id);
 
-                self.cache.insert(current, name.to_string(), id);
-
-                current = id;
+                current = inode_id;
             }
         }
 

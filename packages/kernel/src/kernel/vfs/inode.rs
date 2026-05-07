@@ -4,8 +4,21 @@ use super::error::VfsError;
 
 use alloc::sync::Arc;
 
-/// An inode id points to an inode globally in the inode cache
-pub type INodeId = usize;
+/// An inode id points to an inode globally in the inode cache.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct INodeId(u128);
+
+impl INodeId {
+    /// Create a new inode id
+    pub fn new(id: u128) -> INodeId { INodeId(id) }
+
+    /// Increment self and return the next inode id
+    pub fn increment_next(&mut self) -> INodeId {
+        self.0 += 1;
+
+        *self
+    }
+}
 
 /// An inode number points to an inode within a specific file system and stores a generation number
 /// which is incremented on each reuse to invalidate stale cache entries

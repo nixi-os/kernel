@@ -2,8 +2,14 @@
 
 use super::inode::INodeId;
 
-/// The file descriptor id is an integer which points to a file descriptor
-pub type FileDescriptorId = usize;
+/// The file descriptor id points to a file descriptor
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FileDescriptorId(usize);
+
+impl FileDescriptorId {
+    /// Create a new file descriptor id
+    pub fn new(id: usize) -> FileDescriptorId { FileDescriptorId(id) }
+}
 
 /// A file descriptor represents an open file. It holds the inode id and descriptor state
 pub struct FileDescriptor {
