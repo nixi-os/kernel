@@ -37,7 +37,9 @@ pub fn entry() -> ! {
         scheduler.current = Some(TaskDescriptor::new(pid, tid));
     });
 
-    let _ = vfs::init();
+    if let Err(err) = vfs::init() {
+        panic!("failed to initialize: {:?}", err);
+    }
 
     context::enter_usermode();
 }

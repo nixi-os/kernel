@@ -7,7 +7,7 @@ use alloc::sync::Arc;
 use alloc::collections::{BTreeMap, VecDeque};
 
 /// An inode id points to an inode globally in the inode cache.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct INodeId(u128);
 
 impl INodeId {

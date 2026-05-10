@@ -155,9 +155,15 @@ impl VirtualFileSystem {
             .then_some(self.root)
             .unwrap_or_else(|| todo!("get the current working directory from the process"));
 
-        for name in path.components().filter(|component| !component.is_empty()) {
+        let mut components = path.components()
+            .filter(|component| !component.is_empty())
+            .peekable();
+
+        while let Some(name) = components.peek() {
             if let Some(root) = self.mounts.get(&current) {
                 current = *root;
+
+                continue;
             } else if let Some(cached) = self.dentry_cache.get(current, name) {
                 current = cached;
             } else {
@@ -169,6 +175,8 @@ impl VirtualFileSystem {
 
                 current = inode_id;
             }
+
+            components.next();
         }
 
         Ok(current)
