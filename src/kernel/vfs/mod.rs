@@ -43,9 +43,7 @@ pub fn init() -> Result<(), VfsError> {
 
     let mount_point = vfs.lookup(OwnedPath::from("/proc"))?;
 
-    let procfs = ProcFs::default();
-
-    let inode_id = vfs.inode_cache.insert(INode::new(procfs.root(), Arc::new(procfs)));
+    let inode_id = vfs.prepare_fs(ProcFs::default());
 
     vfs.mount(mount_point, inode_id);
 
@@ -122,6 +120,11 @@ impl VirtualFileSystem {
         self.inode_cache.get(parent)
             .ok_or(VfsError::NoSuchFile)?
             .create_dir(name)
+    }
+
+    /// Prepare an unlinked file system root inode. The file system must be mounted before it can be used
+    pub fn prepare_fs<FS: FileSystem + Send + Sync + 'static>(&mut self, fs: FS) -> INodeId {
+        self.inode_cache.insert(INode::new(fs.root(), Arc::new(fs)))
     }
 
     /// Mount an inode at a mount point
