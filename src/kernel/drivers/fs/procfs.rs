@@ -1,9 +1,8 @@
 //! The procfs provides an interface for managing processes through the virtual file system
 
-use crate::kernel::vfs::inode::{INode, INodeNumber, FileSystem};
+use crate::kernel::vfs::inode::INodeNumber;
+use crate::kernel::vfs::fs::FileSystem;
 use crate::kernel::vfs::error::VfsError;
-
-use alloc::sync::Arc;
 
 
 /// The ProcPathFlags allows a procfs path to be encoded as an inode number
@@ -11,10 +10,10 @@ struct ProcPathFlags;
 
 impl ProcPathFlags {
     /// The process bit, this corresponds to '/proc/{pid}'
-    pub const PROC: usize = 1;
+    pub const PROC: u128 = 1;
 
     /// The file bits are bits 1-31, these bits encode a file, this means there can exist up to 0x7fffffff files under each '/proc/{pid}/'
-    pub const FILE: usize = 0x7fffffff << 1;
+    pub const FILE: u128 = 0x7fffffff << 1;
 }
 
 /// Each file under '/proc/{pid}/' has its own file number. This is the number which is encoded in
@@ -51,28 +50,28 @@ impl ProcFile {
 pub struct ProcFs;
 
 impl FileSystem for ProcFs {
-    fn lookup(self: Arc<ProcFs>, parent: INodeNumber, name: &str) -> Result<INode, VfsError> {
-        if parent.num & ProcPathFlags::PROC == 0 {
-            let pid = name.parse::<u32>().ok().filter(|pid| *pid > 0).ok_or(VfsError::NoSuchFile)? as usize;
-            let inode_num = INodeNumber::new((pid << 32) | ProcPathFlags::PROC, false);
+    fn lookup(&self, parent: INodeNumber, name: &str) -> Result<INodeNumber, VfsError> {
+        if parent.value() & ProcPathFlags::PROC == 0 {
+            let pid = name.parse::<u32>().ok().filter(|pid| *pid > 0).ok_or(VfsError::NoSuchFile)? as u128;
+            let inode_num = INodeNumber::new((pid << 32) | ProcPathFlags::PROC);
 
-            Ok(INode::new(inode_num, self as Arc<dyn FileSystem + Send + Sync>))
-        } else if parent.num & ProcPathFlags::FILE == 0 {
+            Ok(inode_num)
+        } else if parent.value() & ProcPathFlags::FILE == 0 {
             let proc_file = ProcFile::new(name)?;
-            let inode_num = INodeNumber::new(parent.num | ((proc_file as usize) << 1), false);
+            let inode_num = INodeNumber::new(parent.value() | ((proc_file as u128) << 1));
 
-            Ok(INode::new(inode_num, self as Arc<dyn FileSystem + Send + Sync>))
+            Ok(inode_num)
         } else {
             Err(VfsError::NoSuchFile)
         }
     }
 
-    fn create_dir(self: Arc<ProcFs>, _parent: INodeNumber, _name: &str) -> Result<(), VfsError> {
+    fn create_dir(&self, _parent: INodeNumber, _name: &str) -> Result<(), VfsError> {
         Err(VfsError::Unsupported)
     }
 
     fn read(&self, inode_num: INodeNumber, offset: u64, buffer: &mut [u8]) -> Result<(), VfsError> {
-        match ProcFile::try_from(((inode_num.num & ProcPathFlags::FILE) >> 1) as u32)? {
+        match ProcFile::try_from(((inode_num.value() & ProcPathFlags::FILE) >> 1) as u32)? {
             ProcFile::Cwd => {
                 // TODO: read current working directory into buffer
             },

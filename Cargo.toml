@@ -1,3 +1,8 @@
-[workspace]
-resolver = "3"
-members = ["packages/kernel", "packages/kernel-utils"]
+[package]
+name = "kernel"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uefi = { version = "0.36.1" }
+spin = "0.10.0"
