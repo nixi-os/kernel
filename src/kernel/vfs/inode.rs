@@ -94,7 +94,7 @@ impl INodeCache {
         }
     }
 
-    /// Mark a dentry as recently used
+    /// Mark an inode as recently used
     pub fn touch(&mut self, inode_id: INodeId) {
         if let Some(index) = self.order.iter().position(|id| *id == inode_id) {
             self.order.remove(index);
