@@ -5,6 +5,7 @@ use super::inode::INodeId;
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::string::String;
 
+// TODO: make capacity actually do something
 
 /// The dentry cache stores dentries in an LRU cache
 pub struct DEntryCache {

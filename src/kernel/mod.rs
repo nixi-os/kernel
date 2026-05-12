@@ -7,7 +7,7 @@ pub mod syscall;
 pub mod vfs;
 
 use drivers::tty;
-use scheduler::{TaskDescriptor, context};
+use scheduler::context;
 
 
 #[inline(never)]
@@ -31,10 +31,9 @@ pub fn entry() -> ! {
     // - Rewrite the scheduler, specifically process and task handling
 
     scheduler::with_scheduler(|scheduler| {
-        let pid = scheduler.create_proc().expect("unable to create init process");
-        let tid = scheduler.create_task(pid, task1 as *const () as u64, 3).expect("unable to create init task");
+        let proc_id = scheduler.create_proc();
 
-        scheduler.current = Some(TaskDescriptor::new(pid, tid));
+        scheduler.create_task(proc_id, task1 as *const () as u64, 3);
     });
 
     if let Err(err) = vfs::init() {
