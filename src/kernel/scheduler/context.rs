@@ -52,18 +52,10 @@ pub struct Context {
 pub fn enter_usermode() -> ! {
     log!("enter usermode");
 
-    let (stack_frame, kernel_stack): (StackFrame, *const u8) = scheduler::with_scheduler(|scheduler| {
-        /*
-        let (current, _) = scheduler.schedule_task();
-
-        let (task, proc) = scheduler.lookup(current);
-
-        proc.page_table.load();
+    let (stack_frame, kernel_stack) = scheduler::with_scheduler(|scheduler| {
+        let task = scheduler.load_initial_task();
 
         (task.ctx.stack_frame, unsafe { task.kernel_stack.as_ptr().add(task.kernel_stack.len()) })
-        */
-
-        todo!("FIX: ENTER USERMODE WITH NEW SCHEDULER")
     });
 
     tables::set_kernel_stack(kernel_stack);
@@ -92,7 +84,7 @@ pub fn enter_usermode() -> ! {
 pub extern "C" fn switch(ctx: *mut Context) {
     let mut scheduler = SCHEDULER.lock();
 
-    // log!("entry: {:x?}", unsafe { *ctx });
+    log!("entry: {:x?}", unsafe { *ctx });
 
     unsafe {
         *ctx = scheduler.switch(*ctx);

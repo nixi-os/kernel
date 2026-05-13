@@ -22,11 +22,11 @@ impl TaskId {
 
 /// A task will be run by the scheduler on interval
 pub struct Task {
-    proc_id: ProcId,
-    ctx: Context,
-    user_stack: Box<[u8; 4096 * 4]>,
-    kernel_stack: Box<[u8; 4096 * 4]>,
-    xsave: *mut u8,
+    pub proc_id: ProcId,
+    pub ctx: Context,
+    pub user_stack: Box<[u8; 4096 * 4]>,
+    pub kernel_stack: Box<[u8; 4096 * 4]>,
+    pub xsave: *mut u8,
 }
 
 impl Task {
@@ -94,6 +94,11 @@ impl TaskManager {
         }
     }
 
+    /// The the initial task. This is the first task which will be jumped to on entry to usermode
+    pub fn initial_task(&self) -> &Task {
+        &self.entries[self.next_task].task
+    }
+
     /// Create a task
     pub fn create(&mut self, task: Task) -> TaskId {
         self.next_id += 1;
@@ -112,7 +117,7 @@ impl TaskManager {
     fn schedule(&mut self) -> (usize, usize) {
         let previous = self.next_task;
 
-        self.next_task = (self.next_task + 1) % (self.entries.len() - 1);
+        self.next_task = (self.next_task + 1) % self.entries.len();
 
         (previous, self.next_task)
     }

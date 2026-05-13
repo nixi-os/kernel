@@ -5,7 +5,6 @@ pub mod context;
 pub mod task;
 pub mod proc;
 
-use error::SchedulerError;
 use context::Context;
 
 use task::{TaskManager, Task, TaskId};
@@ -36,6 +35,15 @@ impl Scheduler {
             task_manager: TaskManager::new(),
             proc_manager: ProcManager::new(),
         }
+    }
+
+    /// Return the initial task and load its page table
+    pub fn load_initial_task(&self) -> &Task {
+        let task = self.task_manager.initial_task();
+
+        self.proc_manager.load_pt(task.proc_id);
+
+        task
     }
 
     /// Perform a context switch
