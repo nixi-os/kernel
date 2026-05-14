@@ -5,8 +5,6 @@ use super::inode::INodeId;
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::string::String;
 
-// TODO: make capacity actually do something
-
 /// The dentry cache stores dentries in an LRU cache
 pub struct DEntryCache {
     dentry: BTreeMap<INodeId, BTreeMap<String, INodeId>>,
@@ -42,12 +40,23 @@ impl DEntryCache {
 
     /// Insert an inode id under its parent and name
     pub fn insert(&mut self, parent: INodeId, name: String, inode: INodeId) {
+        if self.dentry.len() >= self.capacity {
+            self.evict_lru();
+        }
+
         if let Some(parent) = self.dentry.get_mut(&parent) {
             parent.insert(name, inode);
         } else {
             self.order.push_back(parent);
 
             self.dentry.insert(parent, BTreeMap::from([(name, inode)]));
+        }
+    }
+
+    /// Evict the least recently used dentry
+    pub fn evict_lru(&mut self) {
+        if let Some(inode_id) = self.order.pop_front() {
+            self.dentry.remove(&inode_id);
         }
     }
 }
