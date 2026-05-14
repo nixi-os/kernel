@@ -1,20 +1,15 @@
-//! Handling of syscalls
+//! A syscall allows userspace code to call the kernel
+
+pub mod register;
+pub mod error;
 
 use crate::kernel::arch::x86_64::tables::{TABLES, Tables};
 use crate::kernel::arch::x86_64::tables::tss::TaskStateSegment;
-use crate::kernel::scheduler::context::Context;
 
 use core::arch::naked_asm;
 
 /// Used to save the stack pointer without globbering any additional registers
 static STACK_POINTER_SAVE: u64 = 0;
-
-/// Syscall is called from the syscall handler in assembly
-#[inline(never)]
-#[unsafe(no_mangle)]
-pub extern "C" fn syscall(ctx: *mut Context) {
-    crate::log!("syscall: {:x?}", unsafe { *ctx });
-}
 
 /// The syscall handler is called by the syscall instruction. The syscall handler only globbers rcx and r11, as these are globbered by the syscall instruction itself
 #[unsafe(naked)]
@@ -90,7 +85,7 @@ pub fn syscall_handler() {
         "mov rsp, [{stack_pointer_save}]",
 
         "sysret",
-        syscall = sym syscall,
+        syscall = sym register::syscall,
         tables = sym TABLES,
         stack_pointer_save = sym STACK_POINTER_SAVE,
         rsp0_offset = const core::mem::offset_of!(Tables, tss) + core::mem::offset_of!(TaskStateSegment, rsp),

@@ -1,8 +1,9 @@
 //! Error handling in the VFS
 
+use crate::kernel::syscall::error::HandlerError;
 
 /// Virtual file system errors
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum VfsError {
     /// The offset is beyond EOF
     OutOfBounds,
@@ -15,6 +16,12 @@ pub enum VfsError {
 
     /// Unsupported feature
     Unsupported,
+}
+
+impl HandlerError for VfsError {
+    fn error_code(&self) -> u64 {
+        *self as u64
+    }
 }
 
 impl core::fmt::Display for VfsError {

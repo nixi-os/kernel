@@ -6,11 +6,14 @@ use alloc::collections::BTreeMap;
 
 /// The file descriptor id points to a file descriptor
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FileDescriptorId(u128);
+pub struct FileDescriptorId(u64);
 
 impl FileDescriptorId {
     /// Create a new file descriptor id
-    pub fn new(id: u128) -> FileDescriptorId { FileDescriptorId(id) }
+    pub fn new(id: u64) -> FileDescriptorId { FileDescriptorId(id) }
+
+    /// Return the internal value
+    pub fn value(&self) -> u64 { self.0 }
 }
 
 /// A file descriptor represents an open file. It holds the inode id and descriptor state
@@ -22,7 +25,7 @@ pub struct FileDescriptor {
 /// The file descriptor cache manages open file descriptors and id's
 pub struct FileDescriptorCache {
     descriptors: BTreeMap<FileDescriptorId, FileDescriptor>,
-    next: u128,
+    next: u64,
 }
 
 impl FileDescriptorCache {

@@ -5,6 +5,7 @@ pub mod inode;
 pub mod dentry;
 pub mod fd;
 pub mod fs;
+pub mod syscall;
 
 use fd::{FileDescriptorCache, FileDescriptorId};
 use inode::{INodeCache, INode, INodeId};
@@ -24,7 +25,7 @@ use core::str::Split;
 use spin::{Mutex, Lazy};
 
 /// The global virtual file system handle
-static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
+pub static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
     let rootfs = Root::new();
 
     Mutex::new(VirtualFileSystem::new(INode::new(rootfs.root(), Arc::new(rootfs))))
@@ -47,6 +48,8 @@ pub fn init() -> Result<(), VfsError> {
 
     vfs.mount(mount_point, inode_id);
 
+    syscall::init();
+
     Ok(())
 }
 
@@ -64,6 +67,13 @@ impl From<&str> for OwnedPath {
 }
 
 impl OwnedPath {
+    /// Create a OwnedPath from raw pointer
+    pub unsafe fn from_raw_parts(ptr: *mut u8, len: usize) -> OwnedPath {
+        OwnedPath {
+            path: unsafe { String::from_raw_parts(ptr, len, len) },
+        }
+    }
+
     /// Get an iterator over the components of the path
     pub fn components<'a>(&'a self) -> Split<'a, char> {
         self.path.split('/')
