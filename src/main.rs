@@ -3,6 +3,7 @@
 #![feature(naked_functions_rustic_abi)]
 #![feature(abi_x86_interrupt)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(option_reference_flattening)]
 
 #![no_main]
 #![no_std]

@@ -9,6 +9,8 @@ use crate::kernel::syscall::error::SyscallError;
 use alloc::sync::Arc;
 use alloc::boxed::Box;
 
+use core::slice;
+
 /// Initialize the VFS syscalls
 pub fn init() {
     register::register(0..4, Arc::new(VfsSyscallHandler));
@@ -46,8 +48,21 @@ impl SyscallHandler for VfsSyscallHandler {
 
                 Ok(0)
             },
-            // TODO: implement read and write
-            _ => Err(SyscallError::NotFound),
+            VfsSyscallHandler::READ => {
+                let buf = unsafe { slice::from_raw_parts_mut(args[1] as *mut u8, args[2] as usize) };
+
+                VFS.lock()
+                    .read(FileDescriptorId::new(args[0]), buf)
+                    .map_err(|err| SyscallError::HandlerError(Box::new(err)))
+            },
+            VfsSyscallHandler::WRITE => {
+                let buf = unsafe { slice::from_raw_parts(args[1] as *const u8, args[2] as usize) };
+
+                VFS.lock()
+                    .write(FileDescriptorId::new(args[0]), buf)
+                    .map_err(|err| SyscallError::HandlerError(Box::new(err)))
+            },
+            _ => unreachable!(),
         }
     }
 }

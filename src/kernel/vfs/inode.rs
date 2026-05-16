@@ -58,6 +58,16 @@ impl INode {
     pub fn create_dir(&self, name: &str) -> Result<(), VfsError> {
         self.fs.create_dir(self.inode_num, name)
     }
+
+    /// Read from inode
+    pub fn read(&self, offset: u64, buf: &mut [u8]) -> Result<u64, VfsError> {
+        self.fs.read(self.inode_num, offset, buf)
+    }
+
+    /// Write to inode
+    pub fn write(&self, offset: u64, buf: &[u8]) -> Result<u64, VfsError> {
+        self.fs.write(self.inode_num, offset, buf)
+    }
 }
 
 /// The inode cache is an LRU cache of inodes. The capacity is more a suggestion then a rule, the

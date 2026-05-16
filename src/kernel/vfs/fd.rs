@@ -37,6 +37,11 @@ impl FileDescriptorCache {
         }
     }
 
+    /// Return a mutable reference to a file descriptor
+    pub fn get_mut(&mut self, fd_id: FileDescriptorId) -> Option<&mut FileDescriptor> {
+        self.descriptors.get_mut(&fd_id)
+    }
+
     /// Open a file descriptor for an inode id
     pub fn open(&mut self, inode_id: INodeId) -> FileDescriptorId {
         self.next += 1;

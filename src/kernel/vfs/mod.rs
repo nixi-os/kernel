@@ -7,7 +7,7 @@ pub mod fd;
 pub mod fs;
 pub mod syscall;
 
-use fd::{FileDescriptorCache, FileDescriptorId};
+use fd::{FileDescriptorCache, FileDescriptor, FileDescriptorId};
 use inode::{INodeCache, INode, INodeId};
 use dentry::DEntryCache;
 use fs::FileSystem;
@@ -123,6 +123,37 @@ impl VirtualFileSystem {
         if let Some(inode_id) = self.fd_cache.close(fd_id) {
             self.inode_cache.update_rc(inode_id, |rc| rc - 1);
         }
+    }
+
+    // NOTE: write and read are pretty much identical, however, its not worth it to generalize it
+    // when its only used twice
+
+    /// Read bytes into buf from file and return bytes read
+    pub fn read(&mut self, fd_id: FileDescriptorId, buf: &mut [u8]) -> Result<u64, VfsError> {
+        let fd = self.fd_cache.get_mut(fd_id)
+            .ok_or(VfsError::NoSuchFile)?;
+
+        let read = self.inode_cache.get(fd.inode_id)
+            .expect("inode owned by file descriptor should never be evicted")
+            .read(fd.offset, buf)?;
+
+        fd.offset += read;
+
+        Ok(read)
+    }
+
+    /// Write bytes from buf into file and return bytes written
+    pub fn write(&mut self, fd_id: FileDescriptorId, buf: &[u8]) -> Result<u64, VfsError> {
+        let fd = self.fd_cache.get_mut(fd_id)
+            .ok_or(VfsError::NoSuchFile)?;
+
+        let written = self.inode_cache.get(fd.inode_id)
+            .expect("inode owned by file descriptor should never be evicted")
+            .write(fd.offset, buf)?;
+
+        fd.offset += written;
+
+        Ok(written)
     }
 
     /// Create a subdirectory under parent

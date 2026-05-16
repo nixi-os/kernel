@@ -45,11 +45,11 @@ impl SyscallRegister {
 
     /// Dispatch the correct syscall handler
     pub fn dispatch(&self, ctx: &Context) -> Result<u64, SyscallError> {
-        let handler = self.handlers[ctx.general.rax as usize]
-            .clone()
-            .ok_or(SyscallError::NotFound)?;
-
-        handler.handle(ctx.general.rax, [ctx.general.rbx, ctx.general.rcx, ctx.general.rdx, ctx.general.rsi])
+        if let Some(handler) = self.handlers.get(ctx.general.rax as usize).flatten_ref() {
+            handler.handle(ctx.general.rax, [ctx.general.rdx, ctx.general.rcx, ctx.general.rdi, ctx.general.rsi])
+        } else {
+            Err(SyscallError::NotFound)
+        }
     }
 }
 

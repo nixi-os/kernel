@@ -15,7 +15,8 @@ extern "C" fn task1() -> ! {
     unsafe {
         core::arch::asm!(
             "syscall",
-            in("rax") 0x123,
+            in("rax") 1,
+            in("rdx") 67,
         );
     }
 
@@ -24,11 +25,6 @@ extern "C" fn task1() -> ! {
 
 pub fn entry() -> ! {
     tty::init();
-
-    // TODO: work we should do before we continue with more file systems:
-    // - Make the virtual file system have reference counting for all inodes, so that once an inode
-    // no longer has any file handles attached to it, we evict it
-    // - Rewrite the scheduler, specifically process and task handling
 
     scheduler::with_scheduler(|scheduler| {
         let proc_id = scheduler.create_proc();

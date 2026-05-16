@@ -11,8 +11,11 @@ pub trait FileSystem {
     /// Create a subdirectory under parent
     fn create_dir(&self, parent: INodeNumber, name: &str) -> Result<(), VfsError>;
 
-    /// Read from an inode
-    fn read(&self, inode_num: INodeNumber, offset: u64, buffer: &mut [u8]) -> Result<(), VfsError>;
+    /// Read from inode
+    fn read(&self, inode_num: INodeNumber, offset: u64, buf: &mut [u8]) -> Result<u64, VfsError>;
+
+    /// Write to inode
+    fn write(&self, inode_num: INodeNumber, offset: u64, buf: &[u8]) -> Result<u64, VfsError>;
 
     /// Return the root inode number, the default implementation will always return inode number zero
     fn root(&self) -> INodeNumber { INodeNumber::new(0) }

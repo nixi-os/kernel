@@ -43,7 +43,7 @@ impl FileSystem for Root {
         Ok(())
     }
 
-    fn read(&self, _inode_num: INodeNumber, _offset: u64, _buffer: &mut [u8]) -> Result<(), VfsError> {
+    fn read(&self, _inode_num: INodeNumber, _offset: u64, _buffer: &mut [u8]) -> Result<u64, VfsError> {
         Err(VfsError::Unsupported)
     }
 }

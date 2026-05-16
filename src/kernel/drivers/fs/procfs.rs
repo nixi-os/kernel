@@ -70,14 +70,14 @@ impl FileSystem for ProcFs {
         Err(VfsError::Unsupported)
     }
 
-    fn read(&self, inode_num: INodeNumber, offset: u64, buffer: &mut [u8]) -> Result<(), VfsError> {
+    fn read(&self, inode_num: INodeNumber, offset: u64, buf: &mut [u8]) -> Result<u64, VfsError> {
         match ProcFile::try_from(((inode_num.value() & ProcPathFlags::FILE) >> 1) as u32)? {
             ProcFile::Cwd => {
                 // TODO: read current working directory into buffer
+
+                Ok(0)
             },
         }
-
-        Ok(())
     }
 }
 
