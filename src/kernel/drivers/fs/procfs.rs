@@ -79,6 +79,10 @@ impl FileSystem for ProcFs {
             },
         }
     }
+
+    fn write(&self, _inode_num: INodeNumber, _offset: u64, _buf: &[u8]) -> Result<u64, VfsError> {
+        Err(VfsError::Unsupported)
+    }
 }
 
 
