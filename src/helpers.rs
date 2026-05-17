@@ -1,16 +1,11 @@
 use crate::kernel::drivers::serial::SERIAL;
-use crate::kernel::drivers::tty::pool;
 
 use core::fmt::{Write, Arguments, Error};
 
 
 #[inline(always)]
 pub fn __kprint_fmt(args: Arguments) -> Result<(), Error> {
-    if let Some(mut pool) = pool::get() {
-        pool.write_fmt(args)
-    } else {
-        SERIAL.lock().write_fmt(args)
-    }
+    SERIAL.lock().write_fmt(args)
 }
 
 #[macro_export]

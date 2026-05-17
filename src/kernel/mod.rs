@@ -6,9 +6,7 @@ pub mod arch;
 pub mod syscall;
 pub mod vfs;
 
-use drivers::tty;
 use scheduler::context;
-
 
 #[inline(never)]
 extern "C" fn task1() -> ! {
@@ -24,8 +22,6 @@ extern "C" fn task1() -> ! {
 }
 
 pub fn entry() -> ! {
-    tty::init();
-
     scheduler::with_scheduler(|scheduler| {
         let proc_id = scheduler.create_proc();
 

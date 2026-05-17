@@ -1,5 +1,4 @@
 use crate::kernel::drivers::pic8259;
-use crate::kernel::drivers::tty::pool;
 use crate::kernel::scheduler::context;
 use crate::kernel::arch::x86_64::io;
 use crate::kernel::arch::x86_64::interrupt::{StackFrame, PageFaultErrorCode};
@@ -99,7 +98,10 @@ pub extern "x86-interrupt" fn com1_interrupt(_stack_frame: StackFrame) {
     unsafe {
         let byte = io::inb(0x3f8);
 
-        pool::lock().push(byte);
+        crate::log!("pressed: {}", byte as char);
+
+        // TODO: here we should write the byte to some sort of a device object which would be
+        // mounted under something like /dev/kbd or something
 
         pic8259::end_of_interrupt(36);
     }
