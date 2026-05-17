@@ -1,9 +1,9 @@
 //! The procfs provides an interface for managing processes through the virtual file system
 
-use crate::kernel::vfs::inode::INodeNumber;
-use crate::kernel::vfs::fs::FileSystem;
-use crate::kernel::vfs::error::VfsError;
+use super::FileSystem;
 
+use crate::kernel::vfs::inode::INodeNumber;
+use crate::kernel::vfs::error::VfsError;
 
 /// The ProcPathFlags allows a procfs path to be encoded as an inode number
 struct ProcPathFlags;

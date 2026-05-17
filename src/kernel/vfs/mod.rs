@@ -4,17 +4,18 @@ pub mod error;
 pub mod inode;
 pub mod dentry;
 pub mod fd;
-pub mod fs;
 pub mod syscall;
 
-use fd::{FileDescriptorCache, FileDescriptor, FileDescriptorId};
+use fd::{FileDescriptorCache, FileDescriptorId};
 use inode::{INodeCache, INode, INodeId};
 use dentry::DEntryCache;
 use fs::FileSystem;
 use error::VfsError;
 
-use crate::kernel::drivers::fs::rootfs::Root;
-use crate::kernel::drivers::fs::procfs::ProcFs;
+use crate::kernel::fs::rootfs::RootFs;
+use crate::kernel::fs::procfs::ProcFs;
+use crate::kernel::fs::FileSystemDescriptor;
+use crate::kernel::fs;
 
 use alloc::string::{String, ToString};
 use alloc::collections::BTreeMap;
@@ -26,7 +27,7 @@ use spin::{Mutex, Lazy};
 
 /// The global virtual file system handle
 pub static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
-    let rootfs = Root::new();
+    let rootfs = RootFs::new();
 
     Mutex::new(VirtualFileSystem::new(INode::new(rootfs.root(), Arc::new(rootfs))))
 });
@@ -44,9 +45,7 @@ pub fn init() -> Result<(), VfsError> {
 
     let mount_point = vfs.lookup(OwnedPath::from("/proc"))?;
 
-    let inode_id = vfs.prepare_fs(ProcFs::default());
-
-    vfs.mount(mount_point, inode_id);
+    vfs.mount(mount_point, MountSource::FileSystem(FileSystemDescriptor::new("proc", None)))?;
 
     syscall::init();
 
@@ -83,6 +82,12 @@ impl OwnedPath {
     pub fn is_absolute(&self) -> bool {
         self.path.starts_with('/')
     }
+}
+
+/// A mount source can either be a bind mount or file system mount
+pub enum MountSource<'a> {
+    Bind(INodeId),
+    FileSystem(FileSystemDescriptor<'a>),
 }
 
 /// The virtual file system
@@ -163,17 +168,28 @@ impl VirtualFileSystem {
             .create_dir(name)
     }
 
-    /// Prepare an unlinked file system root inode. The file system must be mounted before it can be used
-    pub fn prepare_fs<FS: FileSystem + Send + Sync + 'static>(&mut self, fs: FS) -> INodeId {
-        self.inode_cache.insert(INode::new(fs.root(), Arc::new(fs)))
+    /// Prepare a mount source
+    fn prepare_mount_source(&mut self, source: MountSource) -> Result<INodeId, VfsError> {
+        match source {
+            MountSource::Bind(inode_id) => Ok(inode_id),
+            MountSource::FileSystem(fs_descriptor) => {
+                let fs = fs_descriptor.prepare()?;
+
+                Ok(self.inode_cache.insert(INode::new(fs.root(), fs)))
+            },
+        }
     }
 
     /// Mount an inode at a mount point
-    pub fn mount(&mut self, mount_point: INodeId, inode_id: INodeId) {
+    pub fn mount(&mut self, mount_point: INodeId, source: MountSource) -> Result<(), VfsError> {
+        let inode_id = self.prepare_mount_source(source)?;
+
         self.inode_cache.set_pinned(mount_point, true);
         self.inode_cache.set_pinned(inode_id, true);
 
         self.mounts.insert(mount_point, inode_id);
+
+        Ok(())
     }
 
     /// Unmount the inode which is mounted at a mount point

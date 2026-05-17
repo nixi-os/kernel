@@ -5,6 +5,7 @@ pub mod scheduler;
 pub mod arch;
 pub mod syscall;
 pub mod vfs;
+pub mod fs;
 
 use scheduler::context;
 

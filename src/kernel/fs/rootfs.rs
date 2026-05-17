@@ -1,7 +1,8 @@
 //! The root file system
 
+use super::FileSystem;
+
 use crate::kernel::vfs::inode::INodeNumber;
-use crate::kernel::vfs::fs::FileSystem;
 use crate::kernel::vfs::error::VfsError;
 
 use alloc::collections::BTreeMap;
@@ -9,24 +10,23 @@ use alloc::string::{String, ToString};
 
 use spin::{Mutex, RwLock};
 
-
 /// The root file system is a flat directory that can only contain subdirectories
-pub struct Root {
+pub struct RootFs {
     entries: RwLock<BTreeMap<String, INodeNumber>>,
     next: Mutex<u128>,
 }
 
-impl Root {
-    /// Create a new root directory
-    pub fn new() -> Root {
-        Root {
+impl RootFs {
+    /// Create a new root file system
+    pub fn new() -> RootFs {
+        RootFs {
             entries: RwLock::new(BTreeMap::new()),
             next: Mutex::new(0),
         }
     }
 }
 
-impl FileSystem for Root {
+impl FileSystem for RootFs {
     fn lookup(&self, _parent: INodeNumber, name: &str) -> Result<INodeNumber, VfsError> {
         let inode_num = self.entries.read().get(name).cloned().ok_or(VfsError::NoSuchFile)?;
 

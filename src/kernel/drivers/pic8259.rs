@@ -1,3 +1,5 @@
+//! Driver for Intel 8259A interrupt controller
+
 use crate::helpers::*;
 
 use crate::kernel::arch::x86_64::io;
