@@ -31,28 +31,12 @@ pub trait FileSystem {
     fn root(&self) -> INodeNumber { INodeNumber::new(0) }
 }
 
-/// A file system descriptor
-pub struct FileSystemDescriptor<'a> {
-    name: &'a str,
-    device: Option<Arc<dyn BlockDevice>>,
-}
-
-impl<'a> FileSystemDescriptor<'a> {
-    /// Create a new file system descriptor
-    pub fn new(name: &'a str, device: Option<Arc<dyn BlockDevice>>) -> FileSystemDescriptor<'a> {
-        FileSystemDescriptor {
-            name,
-            device,
-        }
-    }
-
-    /// Prepare a new file system
-    pub fn prepare(&self) -> Result<Arc<dyn FileSystem + Send + Sync>, VfsError> {
-        match self.name {
-            "proc" => Ok(Arc::new(ProcFs::default())),
-            "dev" => Ok(Arc::new(DevFs::default())),
-            _ => Err(VfsError::Unsupported),
-        }
+/// Prepare a new file system
+pub fn prepare_fs(name: &str, device: Option<Arc<dyn BlockDevice>>) -> Result<Arc<dyn FileSystem + Send + Sync>, VfsError> {
+    match name {
+        "proc" => Ok(Arc::new(ProcFs::default())),
+        "dev" => Ok(Arc::new(DevFs::default())),
+        _ => Err(VfsError::Unsupported),
     }
 }
 

@@ -28,7 +28,6 @@ extern "C" fn task1() -> ! {
 // process, the next step will be implementing a block device, and a file system for that block
 // device eg. FAT32, ext3 or something
 //
-//
 // we will do an initramfs type approach, where we have a read only file system at some predefined
 // location, then the init process which is contained by it will load the actual block device which
 // will be used

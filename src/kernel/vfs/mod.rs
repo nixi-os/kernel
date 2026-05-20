@@ -12,9 +12,8 @@ use dentry::DEntryCache;
 use fs::FileSystem;
 use error::VfsError;
 
+use crate::kernel::device::block::BlockDevice;
 use crate::kernel::fs::rootfs::RootFs;
-use crate::kernel::fs::procfs::ProcFs;
-use crate::kernel::fs::FileSystemDescriptor;
 use crate::kernel::fs;
 
 use alloc::string::{String, ToString};
@@ -45,7 +44,7 @@ pub fn init() -> Result<(), VfsError> {
 
     let mount_point = vfs.lookup(OwnedPath::from("/proc"))?;
 
-    vfs.mount(mount_point, MountSource::FileSystem(FileSystemDescriptor::new("proc", None)))?;
+    vfs.mount(mount_point, MountSource::FileSystem { name: "proc", device: None })?;
 
     syscall::init();
 
@@ -87,7 +86,10 @@ impl OwnedPath {
 /// A mount source can either be a bind mount or file system mount
 pub enum MountSource<'a> {
     Bind(INodeId),
-    FileSystem(FileSystemDescriptor<'a>),
+    FileSystem {
+        name: &'a str,
+        device: Option<Arc<dyn BlockDevice>>,
+    },
 }
 
 /// The virtual file system
@@ -172,8 +174,8 @@ impl VirtualFileSystem {
     fn prepare_mount_source(&mut self, source: MountSource) -> Result<INodeId, VfsError> {
         match source {
             MountSource::Bind(inode_id) => Ok(inode_id),
-            MountSource::FileSystem(fs_descriptor) => {
-                let fs = fs_descriptor.prepare()?;
+            MountSource::FileSystem { name, device } => {
+                let fs = fs::prepare_fs(name, device)?;
 
                 Ok(self.inode_cache.insert(INode::new(fs.root(), fs)))
             },
