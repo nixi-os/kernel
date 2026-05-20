@@ -4,11 +4,12 @@ pub mod rootfs;
 pub mod procfs;
 pub mod devfs;
 
-use devfs::{DevFs, Device};
+use devfs::DevFs;
 use procfs::ProcFs;
 
 use crate::kernel::vfs::inode::INodeNumber;
 use crate::kernel::vfs::error::VfsError;
+use crate::kernel::device::block::BlockDevice;
 
 use alloc::sync::Arc;
 
@@ -33,12 +34,12 @@ pub trait FileSystem {
 /// A file system descriptor
 pub struct FileSystemDescriptor<'a> {
     name: &'a str,
-    device: Option<Arc<dyn Device>>,
+    device: Option<Arc<dyn BlockDevice>>,
 }
 
 impl<'a> FileSystemDescriptor<'a> {
     /// Create a new file system descriptor
-    pub fn new(name: &'a str, device: Option<Arc<dyn Device>>) -> FileSystemDescriptor<'a> {
+    pub fn new(name: &'a str, device: Option<Arc<dyn BlockDevice>>) -> FileSystemDescriptor<'a> {
         FileSystemDescriptor {
             name,
             device,
