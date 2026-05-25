@@ -1,10 +1,11 @@
 //! A syscall allows userspace code to call the kernel
 
+pub mod dispatch;
 pub mod error;
-pub mod register;
 
 use crate::kernel::arch::x86_64::tables::tss::TaskStateSegment;
 use crate::kernel::arch::x86_64::tables::{TABLES, Tables};
+use crate::kernel::context::Context;
 
 use core::arch::naked_asm;
 
@@ -85,9 +86,29 @@ pub fn syscall_handler() {
         "mov rsp, [{stack_pointer_save}]",
 
         "sysret",
-        syscall = sym register::syscall,
+        syscall = sym syscall,
         tables = sym TABLES,
         stack_pointer_save = sym STACK_POINTER_SAVE,
         rsp0_offset = const core::mem::offset_of!(Tables, tss) + core::mem::offset_of!(TaskStateSegment, rsp),
     );
+}
+
+/// Call dispatch and save result in rax and rbx
+#[inline(never)]
+#[unsafe(no_mangle)]
+pub extern "C" fn syscall(ctx: *mut Context) {
+    unsafe {
+        let result = dispatch::dispatch(
+            (*ctx).general.rax,
+            [
+                (*ctx).general.rdx,
+                (*ctx).general.rcx,
+                (*ctx).general.rdi,
+                (*ctx).general.rsi,
+            ],
+        );
+
+        (*ctx).general.rax = result.is_err() as u64;
+        (*ctx).general.rbx = result.map_or_else(|err| err.error_code(), |value| value);
+    }
 }

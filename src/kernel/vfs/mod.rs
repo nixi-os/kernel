@@ -4,7 +4,6 @@ pub mod dentry;
 pub mod error;
 pub mod fd;
 pub mod inode;
-pub mod syscall;
 
 use dentry::DEntryCache;
 use error::VfsError;
@@ -54,8 +53,6 @@ pub fn init() -> Result<(), VfsError> {
             device: None,
         },
     )?;
-
-    syscall::init();
 
     Ok(())
 }
