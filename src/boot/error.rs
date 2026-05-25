@@ -1,5 +1,3 @@
-
-
 #[derive(Debug)]
 pub enum BootError {
     AcpiNotFound,
@@ -22,5 +20,3 @@ impl From<uefi::Error<()>> for BootError {
         BootError::UefiError(err)
     }
 }
-
-

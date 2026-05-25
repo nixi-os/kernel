@@ -2,13 +2,12 @@
 
 use super::SCHEDULER;
 
+use crate::helpers::*;
 use crate::kernel::arch::x86_64::interrupt::StackFrame;
 use crate::kernel::arch::x86_64::tables;
 use crate::kernel::scheduler;
-use crate::helpers::*;
 
 use core::arch::asm;
-
 
 /// Segment registers
 #[repr(C, packed)]
@@ -55,7 +54,9 @@ pub fn enter_usermode() -> ! {
     let (stack_frame, kernel_stack) = scheduler::with_scheduler(|scheduler| {
         let task = scheduler.load_initial_task();
 
-        (task.ctx.stack_frame, unsafe { task.kernel_stack.as_ptr().add(task.kernel_stack.len()) })
+        (task.ctx.stack_frame, unsafe {
+            task.kernel_stack.as_ptr().add(task.kernel_stack.len())
+        })
     });
 
     tables::set_kernel_stack(kernel_stack);
@@ -92,5 +93,3 @@ pub extern "C" fn switch(ctx: *mut Context) {
 
     // log!("exit: {:x?}", unsafe { *ctx });
 }
-
-

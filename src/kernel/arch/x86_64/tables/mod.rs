@@ -7,8 +7,8 @@ pub mod tss;
 
 use crate::helpers::*;
 
-use idt::InterruptDescriptorTable;
 use gdt::GlobalDescriptorTable;
+use idt::InterruptDescriptorTable;
 use tss::TaskStateSegment;
 
 use core::arch::asm;
@@ -90,5 +90,3 @@ pub fn set_kernel_stack(stack: *const u8) {
         (&raw mut TABLES.tss).set_rsp0(stack as u64);
     }
 }
-
-

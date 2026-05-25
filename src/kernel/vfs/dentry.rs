@@ -35,7 +35,10 @@ impl DEntryCache {
     pub fn get(&mut self, parent: INodeId, name: &str) -> Option<INodeId> {
         self.touch(parent);
 
-        self.dentry.get(&parent).and_then(|parent| parent.get(name)).copied()
+        self.dentry
+            .get(&parent)
+            .and_then(|parent| parent.get(name))
+            .copied()
     }
 
     /// Insert an inode id under its parent and name
@@ -60,6 +63,3 @@ impl DEntryCache {
         }
     }
 }
-
-
-

@@ -1,12 +1,11 @@
+use crate::kernel::arch::x86_64::interrupt::{PageFaultErrorCode, StackFrame};
+use crate::kernel::arch::x86_64::io;
 use crate::kernel::drivers::pic8259;
 use crate::kernel::scheduler::context;
-use crate::kernel::arch::x86_64::io;
-use crate::kernel::arch::x86_64::interrupt::{StackFrame, PageFaultErrorCode};
 
 use crate::helpers::*;
 
 use core::arch::naked_asm;
-
 
 pub fn init() {
     pic8259::init(32);
@@ -15,19 +14,28 @@ pub fn init() {
 }
 
 pub extern "x86-interrupt" fn double_fault(stack_frame: StackFrame, error_code: u64) -> ! {
-    error!("double fault:\n{:#x?}\nerror code: {:#x?}", stack_frame, error_code);
+    error!(
+        "double fault:\n{:#x?}\nerror code: {:#x?}",
+        stack_frame, error_code
+    );
 
     loop {}
 }
 
 pub extern "x86-interrupt" fn gp_fault(stack_frame: StackFrame, error_code: u64) {
-    error!("general protection fault:\n{:#x?}\nerror code: {:#x?}", stack_frame, error_code);
+    error!(
+        "general protection fault:\n{:#x?}\nerror code: {:#x?}",
+        stack_frame, error_code
+    );
 
     loop {}
 }
 
 pub extern "x86-interrupt" fn page_fault(stack_frame: StackFrame, error_code: PageFaultErrorCode) {
-    error!("page fault:\n{:#x?}\nerror code: {}", stack_frame, error_code);
+    error!(
+        "page fault:\n{:#x?}\nerror code: {}",
+        stack_frame, error_code
+    );
 
     loop {}
 }
@@ -106,5 +114,3 @@ pub extern "x86-interrupt" fn com1_interrupt(_stack_frame: StackFrame) {
         pic8259::end_of_interrupt(36);
     }
 }
-
-

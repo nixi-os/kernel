@@ -57,13 +57,16 @@ impl InterruptDescriptorTable {
     /// Initialize the interrupt descriptor table
     pub fn init(self: *mut InterruptDescriptorTable) {
         unsafe {
-            (*self).descriptors[8] = InterruptGateDescriptor::new(irq::double_fault as *const () as u64, 0x8);
-            (*self).descriptors[13] = InterruptGateDescriptor::new(irq::gp_fault as *const () as u64, 0x8);
-            (*self).descriptors[14] = InterruptGateDescriptor::new(irq::page_fault as *const () as u64, 0x8);
-            (*self).descriptors[32] = InterruptGateDescriptor::new(irq::timer_interrupt as *const () as u64, 0x8);
-            (*self).descriptors[36] = InterruptGateDescriptor::new(irq::com1_interrupt as *const () as u64, 0x8);
+            (*self).descriptors[8] =
+                InterruptGateDescriptor::new(irq::double_fault as *const () as u64, 0x8);
+            (*self).descriptors[13] =
+                InterruptGateDescriptor::new(irq::gp_fault as *const () as u64, 0x8);
+            (*self).descriptors[14] =
+                InterruptGateDescriptor::new(irq::page_fault as *const () as u64, 0x8);
+            (*self).descriptors[32] =
+                InterruptGateDescriptor::new(irq::timer_interrupt as *const () as u64, 0x8);
+            (*self).descriptors[36] =
+                InterruptGateDescriptor::new(irq::com1_interrupt as *const () as u64, 0x8);
         }
     }
 }
-
-

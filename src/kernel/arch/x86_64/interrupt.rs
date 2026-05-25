@@ -1,6 +1,5 @@
 //! Code for working with x86_64 interrupts
 
-
 /// The interrupt stack frame
 #[repr(C)]
 #[derive(Default, Debug, Clone, Copy)]
@@ -21,9 +20,7 @@ pub struct RFlags {
 
 impl RFlags {
     pub fn new(flags: u64) -> RFlags {
-        RFlags {
-            flags,
-        }
+        RFlags { flags }
     }
 }
 
@@ -45,9 +42,15 @@ impl core::fmt::Debug for RFlags {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
         f.write_str("RFlags { ")?;
 
-        let mut flags = RFlags::FLAGS.iter().filter(|(_, flag)| self.flags & flag != 0);
+        let mut flags = RFlags::FLAGS
+            .iter()
+            .filter(|(_, flag)| self.flags & flag != 0);
 
-        f.write_fmt(format_args!("iopl: {}, flags: {}", (self.flags >> 12) & 3, flags.next().map(|(name, _)| *name).unwrap_or("None")))?;
+        f.write_fmt(format_args!(
+            "iopl: {}, flags: {}",
+            (self.flags >> 12) & 3,
+            flags.next().map(|(name, _)| *name).unwrap_or("None")
+        ))?;
 
         while let Some((name, _)) = flags.next() {
             f.write_fmt(format_args!(" | {}", name))?;
@@ -84,9 +87,14 @@ impl core::fmt::Display for PageFaultErrorCode {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
         f.write_str("PageFaultErrorCode(")?;
 
-        let mut flags = PageFaultErrorCode::FLAGS.iter().filter(|(_, flag)| self.flags & flag != 0);
+        let mut flags = PageFaultErrorCode::FLAGS
+            .iter()
+            .filter(|(_, flag)| self.flags & flag != 0);
 
-        f.write_fmt(format_args!("{}", flags.next().map(|(name, _)| *name).unwrap_or("None")))?;
+        f.write_fmt(format_args!(
+            "{}",
+            flags.next().map(|(name, _)| *name).unwrap_or("None")
+        ))?;
 
         while let Some((name, _)) = flags.next() {
             f.write_fmt(format_args!(" | {}", name))?;
@@ -97,5 +105,3 @@ impl core::fmt::Display for PageFaultErrorCode {
         Ok(())
     }
 }
-
-

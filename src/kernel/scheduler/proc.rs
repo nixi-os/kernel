@@ -2,11 +2,11 @@
 
 use super::task::TaskId;
 
-use crate::kernel::mem::paging::{PageTable, PageSize, PageTableEntryFlags};
+use crate::kernel::mem::paging::{PageSize, PageTable, PageTableEntryFlags};
 use crate::kernel::vfs::OwnedPath;
 
-use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 
 /// A process id points to a process
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -14,7 +14,9 @@ pub struct ProcId(u128);
 
 impl ProcId {
     /// Create a new process id
-    pub fn new(id: u128) -> ProcId { ProcId(id) }
+    pub fn new(id: u128) -> ProcId {
+        ProcId(id)
+    }
 }
 
 /// A process, a single process can have multiple tasks
@@ -31,7 +33,12 @@ impl Proc {
 
         // TODO: here we should only map memory which is used by the process, identity mapping is
         // only temporary
-        page_table.identity_map(0, 1, PageTableEntryFlags::USER | PageTableEntryFlags::WRITE, PageSize::Page1GiB);
+        page_table.identity_map(
+            0,
+            1,
+            PageTableEntryFlags::USER | PageTableEntryFlags::WRITE,
+            PageSize::Page1GiB,
+        );
 
         Proc {
             tasks: Vec::new(),
@@ -91,5 +98,3 @@ impl ProcManager {
         }
     }
 }
-
-

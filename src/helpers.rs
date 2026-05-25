@@ -1,7 +1,6 @@
 use crate::kernel::drivers::serial::SERIAL;
 
-use core::fmt::{Write, Arguments, Error};
-
+use core::fmt::{Arguments, Error, Write};
 
 #[inline(always)]
 pub fn __kprint_fmt(args: Arguments) -> Result<(), Error> {
@@ -29,5 +28,3 @@ macro_rules! error {
 }
 
 pub(crate) use error;
-
-

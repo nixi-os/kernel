@@ -10,10 +10,14 @@ pub struct FileDescriptorId(u64);
 
 impl FileDescriptorId {
     /// Create a new file descriptor id
-    pub fn new(id: u64) -> FileDescriptorId { FileDescriptorId(id) }
+    pub fn new(id: u64) -> FileDescriptorId {
+        FileDescriptorId(id)
+    }
 
     /// Return the internal value
-    pub fn value(&self) -> u64 { self.0 }
+    pub fn value(&self) -> u64 {
+        self.0
+    }
 }
 
 /// A file descriptor represents an open file. It holds the inode id and descriptor state
@@ -48,19 +52,19 @@ impl FileDescriptorCache {
 
         let fd_id = FileDescriptorId::new(self.next);
 
-        self.descriptors.insert(fd_id, FileDescriptor {
-            inode_id,
-            offset: 0,
-        });
+        self.descriptors.insert(
+            fd_id,
+            FileDescriptor {
+                inode_id,
+                offset: 0,
+            },
+        );
 
         fd_id
     }
 
     /// Close a file descriptor and return its inode id
     pub fn close(&mut self, fd_id: FileDescriptorId) -> Option<INodeId> {
-        self.descriptors.remove(&fd_id)
-            .map(|fd| fd.inode_id)
+        self.descriptors.remove(&fd_id).map(|fd| fd.inode_id)
     }
 }
-
-

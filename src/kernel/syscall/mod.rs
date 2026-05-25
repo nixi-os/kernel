@@ -1,10 +1,10 @@
 //! A syscall allows userspace code to call the kernel
 
-pub mod register;
 pub mod error;
+pub mod register;
 
-use crate::kernel::arch::x86_64::tables::{TABLES, Tables};
 use crate::kernel::arch::x86_64::tables::tss::TaskStateSegment;
+use crate::kernel::arch::x86_64::tables::{TABLES, Tables};
 
 use core::arch::naked_asm;
 
@@ -91,5 +91,3 @@ pub fn syscall_handler() {
         rsp0_offset = const core::mem::offset_of!(Tables, tss) + core::mem::offset_of!(TaskStateSegment, rsp),
     );
 }
-
-

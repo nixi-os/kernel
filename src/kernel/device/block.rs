@@ -1,6 +1,5 @@
 //! Block devices
 
-
 /// A block device is a device which is written and read in blocks
 pub trait BlockDevice {
     /// Read a block
@@ -14,5 +13,3 @@ pub trait BlockDevice {
 pub enum BlockError {
     InvalidLba,
 }
-
-

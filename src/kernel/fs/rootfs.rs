@@ -2,8 +2,8 @@
 
 use super::FileSystem;
 
-use crate::kernel::vfs::inode::INodeNumber;
 use crate::kernel::vfs::error::VfsError;
+use crate::kernel::vfs::inode::INodeNumber;
 
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
@@ -28,7 +28,12 @@ impl RootFs {
 
 impl FileSystem for RootFs {
     fn lookup(&self, _parent: INodeNumber, name: &str) -> Result<INodeNumber, VfsError> {
-        let inode_num = self.entries.read().get(name).cloned().ok_or(VfsError::NoSuchFile)?;
+        let inode_num = self
+            .entries
+            .read()
+            .get(name)
+            .cloned()
+            .ok_or(VfsError::NoSuchFile)?;
 
         Ok(inode_num)
     }
@@ -38,12 +43,19 @@ impl FileSystem for RootFs {
 
         *next += 1;
 
-        self.entries.write().insert(name.to_string(), INodeNumber::new(*next));
+        self.entries
+            .write()
+            .insert(name.to_string(), INodeNumber::new(*next));
 
         Ok(())
     }
 
-    fn read(&self, _inode_num: INodeNumber, _offset: u64, _buf: &mut [u8]) -> Result<u64, VfsError> {
+    fn read(
+        &self,
+        _inode_num: INodeNumber,
+        _offset: u64,
+        _buf: &mut [u8],
+    ) -> Result<u64, VfsError> {
         Err(VfsError::Unsupported)
     }
 
@@ -51,5 +63,3 @@ impl FileSystem for RootFs {
         Err(VfsError::Unsupported)
     }
 }
-
-

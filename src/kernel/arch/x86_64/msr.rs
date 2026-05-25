@@ -4,7 +4,6 @@
 
 use core::arch::asm;
 
-
 /// A Model Specific Register
 #[allow(non_camel_case_types)]
 #[repr(u32)]
@@ -50,5 +49,3 @@ pub fn read_msr(register: ModelSpecificRegister) -> u64 {
 pub fn update_msr<F: FnOnce(u64) -> u64>(register: ModelSpecificRegister, f: F) {
     write_msr(register, f(read_msr(register)));
 }
-
-

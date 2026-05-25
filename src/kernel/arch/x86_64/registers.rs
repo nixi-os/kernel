@@ -2,7 +2,6 @@
 
 use core::arch::asm;
 
-
 /// Set the Cr3 register for 4-level paging, the Cr3 register points to a PML4 table, the pointer must be a physical address
 pub fn cr3_set(pml4: u64) {
     assert!(pml4 % 4096 == 0);
@@ -59,5 +58,3 @@ pub fn xcr0_set(flag: u64) {
         );
     }
 }
-
-

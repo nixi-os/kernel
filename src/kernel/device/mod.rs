@@ -4,8 +4,8 @@ pub mod block;
 
 use block::BlockDevice;
 
-use alloc::sync::Arc;
 use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 
 use spin::{Lazy, Mutex};
 
@@ -66,5 +66,3 @@ impl DeviceManager {
         }
     }
 }
-
-

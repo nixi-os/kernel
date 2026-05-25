@@ -37,7 +37,11 @@ impl SyscallRegister {
     }
 
     /// Register a syscall handler for a range of syscalls. This will overwrite any previously registered syscall at the same range
-    pub fn register(&mut self, range: Range<usize>, handler: Arc<dyn SyscallHandler + Send + Sync>) {
+    pub fn register(
+        &mut self,
+        range: Range<usize>,
+        handler: Arc<dyn SyscallHandler + Send + Sync>,
+    ) {
         for index in range {
             self.handlers[index] = Some(Arc::clone(&handler));
         }
@@ -46,7 +50,15 @@ impl SyscallRegister {
     /// Dispatch the correct syscall handler
     pub fn dispatch(&self, ctx: &Context) -> Result<u64, SyscallError> {
         if let Some(handler) = self.handlers.get(ctx.general.rax as usize).flatten_ref() {
-            handler.handle(ctx.general.rax, [ctx.general.rdx, ctx.general.rcx, ctx.general.rdi, ctx.general.rsi])
+            handler.handle(
+                ctx.general.rax,
+                [
+                    ctx.general.rdx,
+                    ctx.general.rcx,
+                    ctx.general.rdi,
+                    ctx.general.rsi,
+                ],
+            )
         } else {
             Err(SyscallError::NotFound)
         }
@@ -64,5 +76,3 @@ pub extern "C" fn syscall(ctx: *mut Context) {
         (*ctx).general.rbx = result.map_or_else(|err| err.error_code(), |value| value);
     }
 }
-
-

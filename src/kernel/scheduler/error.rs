@@ -1,5 +1,3 @@
-
-
 /// A scheduler error
 #[derive(Debug)]
 pub enum SchedulerError {
@@ -17,5 +15,3 @@ impl core::fmt::Display for SchedulerError {
 }
 
 impl core::error::Error for SchedulerError {}
-
-

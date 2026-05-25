@@ -1,14 +1,14 @@
 //! The scheduler implements multitasking on a single cpu
 
-pub mod error;
 pub mod context;
-pub mod task;
+pub mod error;
 pub mod proc;
+pub mod task;
 
 use context::Context;
 
-use task::{TaskManager, Task, TaskId};
-use proc::{ProcManager, ProcId};
+use proc::{ProcId, ProcManager};
+use task::{Task, TaskId, TaskManager};
 
 use spin::{Lazy, Mutex};
 
@@ -62,12 +62,12 @@ impl Scheduler {
 
     /// Create a new task for a process and return its task id
     pub fn create_task(&mut self, proc_id: ProcId, entry: u64, privilege_level: u8) -> TaskId {
-        let task_id = self.task_manager.create(Task::new(proc_id, entry, privilege_level));
+        let task_id = self
+            .task_manager
+            .create(Task::new(proc_id, entry, privilege_level));
 
         self.proc_manager.adopt_task(proc_id, task_id);
 
         task_id
     }
 }
-
-

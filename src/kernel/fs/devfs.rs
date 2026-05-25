@@ -5,8 +5,10 @@ use super::FileSystem;
 use crate::kernel::vfs::error::VfsError;
 use crate::kernel::vfs::inode::INodeNumber;
 
-use alloc::collections::BTreeMap;
-use alloc::string::String;
+// TODO: we should maybe have a generic implementation for state embedded in inode numbers, the
+// same way we do it in procfs, except its generic
+//
+// hmm, we actually dont want deterministic inode numbers, we want dynamic one-time-use inode numbers
 
 /// The device file system
 #[derive(Default)]
@@ -29,5 +31,3 @@ impl FileSystem for DevFs {
         Err(VfsError::Unsupported)
     }
 }
-
-

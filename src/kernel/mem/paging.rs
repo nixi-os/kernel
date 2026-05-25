@@ -1,9 +1,8 @@
 //! Code for working with 64-bit paging
 
-use crate::kernel::arch::x86_64::registers;
 use crate::kernel::arch::x86_64;
+use crate::kernel::arch::x86_64::registers;
 use crate::kernel::mem::pma;
-
 
 /// Represents the size of a page, modern processors support up to 1GiB pages
 #[derive(Debug, Clone, Copy)]
@@ -92,7 +91,7 @@ impl PageTable {
         flags: u64,
         size: PageSize,
         depth: u8,
-        table: *mut PageTableEntry
+        table: *mut PageTableEntry,
     ) {
         let level = size.levels() as u64 - depth as u64;
         let index = (vaddr >> (12 + ((3 - level) * 9))) & 0x1ff;
@@ -102,12 +101,25 @@ impl PageTable {
 
             if depth > 0 {
                 if !(*entry).is_present() {
-                    *entry = PageTableEntry::new(pma::alloc_zeroed(1) as u64, flags | PageTableEntryFlags::PRESENT);
+                    *entry = PageTableEntry::new(
+                        pma::alloc_zeroed(1) as u64,
+                        flags | PageTableEntryFlags::PRESENT,
+                    );
                 }
 
-                self.create_map(vaddr, paddr, flags, size, depth - 1, (*entry).physical_address() as *mut PageTableEntry);
+                self.create_map(
+                    vaddr,
+                    paddr,
+                    flags,
+                    size,
+                    depth - 1,
+                    (*entry).physical_address() as *mut PageTableEntry,
+                );
             } else {
-                *entry = PageTableEntry::new(paddr, flags | PageTableEntryFlags::PRESENT | PageTableEntryFlags::PAGE_SIZE)
+                *entry = PageTableEntry::new(
+                    paddr,
+                    flags | PageTableEntryFlags::PRESENT | PageTableEntryFlags::PAGE_SIZE,
+                )
             }
         }
     }
@@ -162,5 +174,3 @@ impl PageTableEntry {
         self.entry & 1 == 1
     }
 }
-
-

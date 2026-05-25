@@ -2,19 +2,18 @@
 
 mod error;
 
-use crate::kernel::arch::x86_64::{self, tables};
-use crate::kernel::mem::pma;
-use crate::kernel::irq;
 use crate::kernel;
+use crate::kernel::arch::x86_64::{self, tables};
+use crate::kernel::irq;
+use crate::kernel::mem::pma;
 
 use crate::helpers::*;
 
 use error::BootError;
 
-use uefi::table::cfg::ConfigTableEntry;
-use uefi::proto::loaded_image::LoadedImage;
 use uefi::prelude::*;
-
+use uefi::proto::loaded_image::LoadedImage;
+use uefi::table::cfg::ConfigTableEntry;
 
 /// Exit boot services, initialize all subsystems and jump to kernel entry
 pub fn boot() -> Result<(), BootError> {
@@ -48,9 +47,7 @@ pub fn boot() -> Result<(), BootError> {
             pma::init(&mmap);
 
             kernel::entry();
-        },
+        }
         None => Err(BootError::AcpiNotFound),
     }
 }
-
-

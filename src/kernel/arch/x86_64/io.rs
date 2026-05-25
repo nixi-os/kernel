@@ -2,7 +2,6 @@
 
 use core::arch::asm;
 
-
 /// Write a byte to an I/O port
 #[inline(always)]
 pub unsafe fn outb(port: u16, byte: u8) {
@@ -30,5 +29,3 @@ pub unsafe fn inb(port: u16) -> u8 {
 
     byte
 }
-
-

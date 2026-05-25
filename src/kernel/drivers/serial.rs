@@ -31,9 +31,7 @@ impl Serial {
             }
         }
 
-        Serial {
-            port,
-        }
+        Serial { port }
     }
 
     pub fn write(&self, buf: &[u8]) {
@@ -54,5 +52,3 @@ impl core::fmt::Write for Serial {
         Ok(())
     }
 }
-
-

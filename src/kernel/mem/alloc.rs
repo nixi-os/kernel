@@ -51,7 +51,6 @@ impl Allocator {
         }
     }
 
-
     /// Find a block with size bytes and remove it from free list
     /// or allocate a new block with size bytes
     fn prepare_block(&self, size: usize) -> *mut BlockHeader {
@@ -66,7 +65,7 @@ impl Allocator {
                 }
 
                 header
-            },
+            }
         }
     }
 
@@ -86,14 +85,17 @@ impl Allocator {
 unsafe impl GlobalAlloc for Allocator {
     /// Allocate memory based on layout. The allocation will have atleast size bytes
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let old_header = self.prepare_block((layout.align() - 1) + mem::size_of::<BlockHeader>() + layout.size());
+        let old_header = self
+            .prepare_block((layout.align() - 1) + mem::size_of::<BlockHeader>() + layout.size());
 
         unsafe {
-            let padding = (old_header.byte_add(mem::size_of::<BlockHeader>()) as *mut u8).align_offset(layout.align());
+            let padding = (old_header.byte_add(mem::size_of::<BlockHeader>()) as *mut u8)
+                .align_offset(layout.align());
 
             let new_header = old_header.byte_add(padding);
 
-            *new_header = BlockHeader::new((*old_header).next, (*old_header).size - padding, padding);
+            *new_header =
+                BlockHeader::new((*old_header).next, (*old_header).size - padding, padding);
 
             new_header.byte_add(mem::size_of::<BlockHeader>()) as *mut u8
         }
@@ -114,5 +116,3 @@ unsafe impl GlobalAlloc for Allocator {
 }
 
 unsafe impl Sync for Allocator {}
-
-

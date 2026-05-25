@@ -1,6 +1,5 @@
 //! An implementation of task state segments
 
-
 /// The task state segment contains RSP0-2, IST1-7 and the I/O Map Base Address
 #[repr(C, packed)]
 pub struct TaskStateSegment {
@@ -33,5 +32,3 @@ impl TaskStateSegment {
         }
     }
 }
-
-

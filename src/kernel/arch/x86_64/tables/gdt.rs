@@ -1,7 +1,7 @@
 //! An implementation of the global descriptor table
 
-use super::tss::TaskStateSegment;
 use super::DescriptorTablePointer;
+use super::tss::TaskStateSegment;
 
 use core::arch::asm;
 
@@ -44,15 +44,15 @@ pub struct SegmentDescriptor {
 impl SegmentDescriptor {
     /// Create a new empty segment descriptor
     pub const fn new() -> SegmentDescriptor {
-        SegmentDescriptor {
-            descriptor: 0,
-        }
+        SegmentDescriptor { descriptor: 0 }
     }
 
     /// Create a new segment descriptor with default flags for code or data
     pub const fn code_or_data() -> SegmentDescriptor {
         let descriptor = SegmentDescriptor {
-            descriptor: DescriptorFlags::LONG_MODE | DescriptorFlags::PRESENT | DescriptorFlags::CODE_DATA,
+            descriptor: DescriptorFlags::LONG_MODE
+                | DescriptorFlags::PRESENT
+                | DescriptorFlags::CODE_DATA,
         };
 
         descriptor.set_type(0b010)
@@ -128,20 +128,21 @@ impl GlobalDescriptorTable {
             null: SegmentDescriptor::code_or_data(),
             kernel_code: SegmentDescriptor::code_or_data().set_flags(DescriptorFlags::EXECUTE),
             kernel_data: SegmentDescriptor::code_or_data(),
-            user_code: SegmentDescriptor::code_or_data().set_flags(DescriptorFlags::EXECUTE).set_privilege_level(3),
+            user_code: SegmentDescriptor::code_or_data()
+                .set_flags(DescriptorFlags::EXECUTE)
+                .set_privilege_level(3),
             user_data: SegmentDescriptor::code_or_data().set_privilege_level(3),
-            tss: TssDescriptor {
-                descriptor: 0,
-            },
+            tss: TssDescriptor { descriptor: 0 },
         }
     }
 
     /// Initialize the global descriptor table with a tss
     pub fn init_with_tss(self: *mut GlobalDescriptorTable, tss: u64) {
         unsafe {
-            (*self).tss = SegmentDescriptor::new().set_flags(DescriptorFlags::PRESENT | DescriptorFlags::EXECUTE).set_type(0b001).as_tss_descriptor(tss as u128);
+            (*self).tss = SegmentDescriptor::new()
+                .set_flags(DescriptorFlags::PRESENT | DescriptorFlags::EXECUTE)
+                .set_type(0b001)
+                .as_tss_descriptor(tss as u128);
         }
     }
 }
-
-

@@ -3,8 +3,8 @@
 use super::error::VfsError;
 use super::fs::FileSystem;
 
-use alloc::sync::Arc;
 use alloc::collections::{BTreeMap, VecDeque};
+use alloc::sync::Arc;
 
 /// An inode id points to an inode globally in the inode cache.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -12,7 +12,9 @@ pub struct INodeId(u128);
 
 impl INodeId {
     /// Create a new inode id
-    pub fn new(id: u128) -> INodeId { INodeId(id) }
+    pub fn new(id: u128) -> INodeId {
+        INodeId(id)
+    }
 }
 
 /// An inode number points to an inode within a specific file system
@@ -21,10 +23,14 @@ pub struct INodeNumber(u128);
 
 impl INodeNumber {
     /// Create a new inode number
-    pub fn new(num: u128) -> INodeNumber { INodeNumber(num) }
+    pub fn new(num: u128) -> INodeNumber {
+        INodeNumber(num)
+    }
 
     /// Return the inner value
-    pub fn value(&self) -> u128 { self.0 }
+    pub fn value(&self) -> u128 {
+        self.0
+    }
 }
 
 /// An inode is a node in the virtual file system. The inode can be backed by any file system implementation
@@ -143,7 +149,12 @@ impl INodeCache {
                 break;
             };
 
-            if self.inodes.get(&inode_id).map(|inode| inode.pinned || inode.rc > 0).unwrap_or(false) {
+            if self
+                .inodes
+                .get(&inode_id)
+                .map(|inode| inode.pinned || inode.rc > 0)
+                .unwrap_or(false)
+            {
                 self.order.push_back(inode_id);
             } else {
                 self.inodes.remove(&inode_id);
@@ -153,5 +164,3 @@ impl INodeCache {
         }
     }
 }
-
-

@@ -1,10 +1,9 @@
 ///! The physical memory allocator handles allocation of physical frames, it does not concern
 ///! itself with virtual memory.
-
 use crate::helpers::*;
 
-use uefi::mem::memory_map::{MemoryType, MemoryMap, MemoryMapOwned};
 use spin::Mutex;
+use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned, MemoryType};
 
 static PMA: Mutex<PhysicalMemoryAllocator> = Mutex::new(PhysicalMemoryAllocator::new());
 
@@ -30,7 +29,7 @@ pub fn alloc_zeroed(frames: usize) -> *const () {
             let frame = (ptr as *mut [u64; 512]).add(index);
 
             *frame = [0u64; 512];
-       }
+        }
     }
 
     ptr
@@ -41,9 +40,7 @@ pub fn alloc_zeroed(frames: usize) -> *const () {
 /// free is unsafe because the caller must ensure that the address and frame count is valid.
 #[inline(always)]
 pub unsafe fn free(address: *const (), frames: usize) {
-    unsafe {
-        PMA.lock().free(address, frames)
-    }
+    unsafe { PMA.lock().free(address, frames) }
 }
 
 pub struct PhysicalMemoryAllocator {
@@ -69,7 +66,8 @@ impl PhysicalMemoryAllocator {
                 for frame in 0..descriptor.page_count {
                     let bit = base + frame as usize;
 
-                    self.bitmap[bit / u128::BITS as usize] &= !(1u128 << (bit % u128::BITS as usize));
+                    self.bitmap[bit / u128::BITS as usize] &=
+                        !(1u128 << (bit % u128::BITS as usize));
                 }
             }
         }
@@ -111,5 +109,3 @@ impl PhysicalMemoryAllocator {
         }
     }
 }
-
-

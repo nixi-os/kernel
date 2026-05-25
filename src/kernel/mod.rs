@@ -1,12 +1,12 @@
-pub mod drivers;
-pub mod mem;
-pub mod irq;
-pub mod scheduler;
 pub mod arch;
+pub mod device;
+pub mod drivers;
+pub mod fs;
+pub mod irq;
+pub mod mem;
+pub mod scheduler;
 pub mod syscall;
 pub mod vfs;
-pub mod fs;
-pub mod device;
 
 use scheduler::context;
 
@@ -33,6 +33,8 @@ extern "C" fn task1() -> ! {
 // will be used
 //
 // we will also have to implement an ELF loader
+//
+// TODO: we will have to do device discovery
 
 pub fn entry() -> ! {
     scheduler::with_scheduler(|scheduler| {
@@ -47,5 +49,3 @@ pub fn entry() -> ! {
 
     context::enter_usermode();
 }
-
-

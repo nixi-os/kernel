@@ -2,8 +2,8 @@
 
 use super::FileSystem;
 
-use crate::kernel::vfs::inode::INodeNumber;
 use crate::kernel::vfs::error::VfsError;
+use crate::kernel::vfs::inode::INodeNumber;
 
 /// The ProcPathFlags allows a procfs path to be encoded as an inode number
 struct ProcPathFlags;
@@ -44,6 +44,17 @@ impl ProcFile {
     }
 }
 
+// TODO: we shouldnt use deterministic numbers, its much better to just dynamically generate
+//
+// hmm, but if we use dynamically generated numbers then we will have to cache absolutely all
+// inode numbers for this session, which would be stupid, or is that acceptable? not really,
+// because it would be like dentry except it never evicts
+//
+// TODO: we should just use deterministic numbers, WHERE IT FITS
+// and generated numbers, WHERE IT FITS
+//
+// but it doesnt seem to fit anywhere
+
 /// A procfs implementation, it uses deterministic inode numbers meaning each inode number is the
 /// encoding of a path
 #[derive(Default)]
@@ -52,7 +63,11 @@ pub struct ProcFs;
 impl FileSystem for ProcFs {
     fn lookup(&self, parent: INodeNumber, name: &str) -> Result<INodeNumber, VfsError> {
         if parent.value() & ProcPathFlags::PROC == 0 {
-            let pid = name.parse::<u32>().ok().filter(|pid| *pid > 0).ok_or(VfsError::NoSuchFile)? as u128;
+            let pid = name
+                .parse::<u32>()
+                .ok()
+                .filter(|pid| *pid > 0)
+                .ok_or(VfsError::NoSuchFile)? as u128;
             let inode_num = INodeNumber::new((pid << 32) | ProcPathFlags::PROC);
 
             Ok(inode_num)
@@ -76,7 +91,7 @@ impl FileSystem for ProcFs {
                 // TODO: read current working directory into buffer
 
                 Ok(0)
-            },
+            }
         }
     }
 
@@ -84,5 +99,3 @@ impl FileSystem for ProcFs {
         Err(VfsError::Unsupported)
     }
 }
-
-

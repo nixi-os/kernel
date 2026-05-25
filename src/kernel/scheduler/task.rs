@@ -1,15 +1,15 @@
 //! A task is a function to be performed
 
-use super::context::{Context, Segments, GeneralPurpose};
+use super::context::{Context, GeneralPurpose, Segments};
 use super::proc::ProcId;
 
-use crate::kernel::arch::x86_64::interrupt::{StackFrame, RFlags};
-use crate::kernel::arch::x86_64::tables;
 use crate::kernel::arch::x86_64;
+use crate::kernel::arch::x86_64::interrupt::{RFlags, StackFrame};
+use crate::kernel::arch::x86_64::tables;
 
+use alloc::alloc::Layout;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use alloc::alloc::Layout;
 
 /// A task id points to a task
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -17,7 +17,9 @@ pub struct TaskId(u128);
 
 impl TaskId {
     /// Create a new task id
-    pub fn new(id: u128) -> TaskId { TaskId(id) }
+    pub fn new(id: u128) -> TaskId {
+        TaskId(id)
+    }
 }
 
 /// A task will be run by the scheduler on interval
@@ -32,7 +34,8 @@ pub struct Task {
 impl Task {
     /// Create a new task with an entry point and privilege level
     pub fn new(proc_id: ProcId, entry: u64, privilege_level: u8) -> Task {
-        let layout = Layout::from_size_align(x86_64::required_xsave_size() as usize, 64).expect("xsave allocation shouldn't break alignment rules");
+        let layout = Layout::from_size_align(x86_64::required_xsave_size() as usize, 64)
+            .expect("xsave allocation shouldn't break alignment rules");
         let xsave = unsafe { alloc::alloc::alloc_zeroed(layout) };
 
         let user_stack = Box::new([0; 4096 * 4]);
@@ -105,10 +108,7 @@ impl TaskManager {
 
         let task_id = TaskId::new(self.next_id);
 
-        self.entries.push(TaskEntry {
-            task_id,
-            task,
-        });
+        self.entries.push(TaskEntry { task_id, task });
 
         task_id
     }
@@ -140,5 +140,3 @@ impl TaskManager {
         (self.entries[next].task.proc_id, self.entries[next].task.ctx)
     }
 }
-
-

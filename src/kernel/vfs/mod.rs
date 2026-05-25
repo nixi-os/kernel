@@ -1,34 +1,37 @@
 //! The virtual file system
 
-pub mod error;
-pub mod inode;
 pub mod dentry;
+pub mod error;
 pub mod fd;
+pub mod inode;
 pub mod syscall;
 
-use fd::{FileDescriptorCache, FileDescriptorId};
-use inode::{INodeCache, INode, INodeId};
 use dentry::DEntryCache;
-use fs::FileSystem;
 use error::VfsError;
+use fd::{FileDescriptorCache, FileDescriptorId};
+use fs::FileSystem;
+use inode::{INode, INodeCache, INodeId};
 
 use crate::kernel::device::block::BlockDevice;
-use crate::kernel::fs::rootfs::RootFs;
 use crate::kernel::fs;
+use crate::kernel::fs::rootfs::RootFs;
 
-use alloc::string::{String, ToString};
 use alloc::collections::BTreeMap;
+use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 
 use core::str::Split;
 
-use spin::{Mutex, Lazy};
+use spin::{Lazy, Mutex};
 
 /// The global virtual file system handle
 pub static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
     let rootfs = RootFs::new();
 
-    Mutex::new(VirtualFileSystem::new(INode::new(rootfs.root(), Arc::new(rootfs))))
+    Mutex::new(VirtualFileSystem::new(INode::new(
+        rootfs.root(),
+        Arc::new(rootfs),
+    )))
 });
 
 /// Initialize the virtual file system
@@ -44,7 +47,13 @@ pub fn init() -> Result<(), VfsError> {
 
     let mount_point = vfs.lookup(OwnedPath::from("/proc"))?;
 
-    vfs.mount(mount_point, MountSource::FileSystem { name: "proc", device: None })?;
+    vfs.mount(
+        mount_point,
+        MountSource::FileSystem {
+            name: "proc",
+            device: None,
+        },
+    )?;
 
     syscall::init();
 
@@ -114,7 +123,9 @@ impl VirtualFileSystem {
     }
 
     /// Return the root inode id
-    pub fn root(&self) -> INodeId { self.root }
+    pub fn root(&self) -> INodeId {
+        self.root
+    }
 
     /// Open a file descriptor and return its id
     pub fn open(&mut self, path: OwnedPath) -> Result<FileDescriptorId, VfsError> {
@@ -137,10 +148,11 @@ impl VirtualFileSystem {
 
     /// Read bytes into buf from file and return bytes read
     pub fn read(&mut self, fd_id: FileDescriptorId, buf: &mut [u8]) -> Result<u64, VfsError> {
-        let fd = self.fd_cache.get_mut(fd_id)
-            .ok_or(VfsError::NoSuchFile)?;
+        let fd = self.fd_cache.get_mut(fd_id).ok_or(VfsError::NoSuchFile)?;
 
-        let read = self.inode_cache.get(fd.inode_id)
+        let read = self
+            .inode_cache
+            .get(fd.inode_id)
             .expect("inode owned by file descriptor should never be evicted")
             .read(fd.offset, buf)?;
 
@@ -151,10 +163,11 @@ impl VirtualFileSystem {
 
     /// Write bytes from buf into file and return bytes written
     pub fn write(&mut self, fd_id: FileDescriptorId, buf: &[u8]) -> Result<u64, VfsError> {
-        let fd = self.fd_cache.get_mut(fd_id)
-            .ok_or(VfsError::NoSuchFile)?;
+        let fd = self.fd_cache.get_mut(fd_id).ok_or(VfsError::NoSuchFile)?;
 
-        let written = self.inode_cache.get(fd.inode_id)
+        let written = self
+            .inode_cache
+            .get(fd.inode_id)
             .expect("inode owned by file descriptor should never be evicted")
             .write(fd.offset, buf)?;
 
@@ -165,7 +178,8 @@ impl VirtualFileSystem {
 
     /// Create a subdirectory under parent
     pub fn create_dir(&mut self, parent: INodeId, name: &str) -> Result<(), VfsError> {
-        self.inode_cache.get(parent)
+        self.inode_cache
+            .get(parent)
             .ok_or(VfsError::NoSuchFile)?
             .create_dir(name)
     }
@@ -178,7 +192,7 @@ impl VirtualFileSystem {
                 let fs = fs::prepare_fs(name, device)?;
 
                 Ok(self.inode_cache.insert(INode::new(fs.root(), fs)))
-            },
+            }
         }
     }
 
@@ -210,11 +224,13 @@ impl VirtualFileSystem {
     ///  2. Check dentry cache
     ///  3. Query file system
     pub fn lookup(&mut self, path: OwnedPath) -> Result<INodeId, VfsError> {
-        let mut current = path.is_absolute()
+        let mut current = path
+            .is_absolute()
             .then_some(self.root)
             .unwrap_or_else(|| todo!("get the current working directory from the process"));
 
-        let mut components = path.components()
+        let mut components = path
+            .components()
             .filter(|component| !component.is_empty())
             .peekable();
 
@@ -226,11 +242,16 @@ impl VirtualFileSystem {
             } else if let Some(cached) = self.dentry_cache.get(current, name) {
                 current = cached;
             } else {
-                let inode = self.inode_cache.get(current).ok_or(VfsError::NoSuchFile)?.lookup(name)?;
+                let inode = self
+                    .inode_cache
+                    .get(current)
+                    .ok_or(VfsError::NoSuchFile)?
+                    .lookup(name)?;
 
                 let inode_id = self.inode_cache.insert(inode);
 
-                self.dentry_cache.insert(current, name.to_string(), inode_id);
+                self.dentry_cache
+                    .insert(current, name.to_string(), inode_id);
 
                 current = inode_id;
             }
@@ -241,5 +262,3 @@ impl VirtualFileSystem {
         Ok(current)
     }
 }
-
-

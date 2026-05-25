@@ -8,7 +8,9 @@ pub trait HandlerError {
 }
 
 impl HandlerError for () {
-    fn error_code(&self) -> u64 { 0 }
+    fn error_code(&self) -> u64 {
+        0
+    }
 }
 
 /// A syscall error
@@ -29,5 +31,3 @@ impl SyscallError {
         }
     }
 }
-
-
