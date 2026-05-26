@@ -1,6 +1,7 @@
 //! File system implementations
 
 pub mod devfs;
+pub mod initramfs;
 pub mod procfs;
 pub mod rootfs;
 
