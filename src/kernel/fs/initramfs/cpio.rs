@@ -5,9 +5,9 @@ use core::slice::Iter;
 
 /// A CPIO entry. The CPIO entry is stripped of all unused values
 pub struct CpioEntry<'a> {
-    inode: u16,
-    path: &'a str,
-    data: &'a [u8],
+    pub inode: u16,
+    pub path: &'a str,
+    pub data: &'a [u8],
 }
 
 /// Parser of the Binary CPIO format

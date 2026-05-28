@@ -2,3 +2,4 @@
 /ovmf
 /cookbook/book
 TODO.md
+initramfs.cpio
