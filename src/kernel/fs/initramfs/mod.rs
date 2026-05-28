@@ -23,7 +23,7 @@ impl InitramFs {
 
         InitramFs {
             entries: parser
-                .filter(|entry| entry.path == "TRAILER!!!")
+                .filter(|entry| entry.path != "TRAILER!!!")
                 .collect::<Vec<CpioEntry<'static>>>(),
         }
     }
