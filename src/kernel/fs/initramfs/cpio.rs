@@ -4,6 +4,7 @@ use core::iter::Iterator;
 use core::slice::Iter;
 
 /// A CPIO entry. The CPIO entry is stripped of all unused values
+#[derive(Debug)]
 pub struct CpioEntry<'a> {
     pub inode: u16,
     pub path: &'a str,
@@ -27,7 +28,9 @@ impl<'a> CpioParser<'a> {
     fn next_chunk<const N: usize>(&mut self, pad: usize) -> Option<[u8; N]> {
         let chunk = self.bytes.next_chunk::<N>().ok()?.map(|byte| *byte);
 
-        self.bytes.nth(pad);
+        if pad > 0 {
+            self.bytes.nth(pad - 1);
+        }
 
         Some(chunk)
     }
@@ -41,7 +44,9 @@ impl<'a> CpioParser<'a> {
 
             self.bytes = rest.iter();
 
-            self.bytes.nth((n % pad) - 1);
+            if n % pad > 0 {
+                self.bytes.nth((n % pad) - 1);
+            }
 
             Some(bytes)
         } else {
@@ -58,12 +63,21 @@ impl<'a> Iterator for CpioParser<'a> {
 
         let inode = u16::from_le_bytes(self.next_chunk::<2>(14)?);
         let path_size = u16::from_le_bytes(self.next_chunk::<2>(0)?);
-        let data_size = u32::from_le_bytes(self.next_chunk::<4>(0)?);
 
-        Some(CpioEntry {
-            inode,
-            path: str::from_utf8(self.next_bytes(path_size as usize, 2)?).ok()?,
-            data: self.next_bytes(data_size as usize, 2)?,
-        })
+        let data_size_high = u16::from_le_bytes(self.next_chunk::<2>(0)?) as u32;
+        let data_size_low = u16::from_le_bytes(self.next_chunk::<2>(0)?) as u32;
+        let data_size = (data_size_high << 16) | data_size_low;
+
+        let path = str::from_utf8(self.next_bytes(path_size as usize - 1, 2)?).ok()?;
+
+        if path != "TRAILER!!!" {
+            Some(CpioEntry {
+                inode,
+                path,
+                data: self.next_bytes(data_size as usize, 2)?,
+            })
+        } else {
+            None
+        }
     }
 }

@@ -9,6 +9,7 @@ use devfs::DevFs;
 use procfs::ProcFs;
 
 use crate::kernel::device::block::BlockDevice;
+use crate::kernel::fs::initramfs::InitramFs;
 use crate::kernel::vfs::error::VfsError;
 use crate::kernel::vfs::inode::INodeNumber;
 
@@ -42,6 +43,7 @@ pub fn prepare_fs(
     match name {
         "proc" => Ok(Arc::new(ProcFs::default())),
         "dev" => Ok(Arc::new(DevFs::default())),
+        "initramfs" => Ok(Arc::new(InitramFs::new())),
         _ => Err(VfsError::Unsupported),
     }
 }

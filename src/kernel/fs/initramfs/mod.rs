@@ -7,6 +7,7 @@ use crate::kernel::vfs::inode::INodeNumber;
 
 use cpio::{CpioEntry, CpioParser};
 
+use alloc::vec;
 use alloc::vec::Vec;
 
 /// The initramfs is built into the kernel at compile-time and mounted as root at boot
@@ -15,28 +16,40 @@ pub struct InitramFs {
 }
 
 impl InitramFs {
+    /// Create a new initramfs
     pub fn new() -> InitramFs {
-        let parser = CpioParser::new(include_bytes!(concat!(
+        let mut entries = vec![CpioEntry {
+            inode: 0,
+            path: "",
+            data: &[],
+        }];
+
+        entries.extend(CpioParser::new(include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/initramfs.cpio"
-        )));
+        ))));
 
-        InitramFs {
-            entries: parser
-                .filter(|entry| entry.path != "TRAILER!!!")
-                .collect::<Vec<CpioEntry<'static>>>(),
-        }
+        InitramFs { entries }
     }
 }
 
 impl FileSystem for InitramFs {
-    fn lookup(&self, _parent: INodeNumber, name: &str) -> Result<INodeNumber, VfsError> {
-        // TODO: support nested file structures
+    fn lookup(&self, parent: INodeNumber, name: &str) -> Result<INodeNumber, VfsError> {
+        let parent_entry = &self.entries[parent.value() as usize];
 
         self.entries
             .iter()
-            .find(|entry| entry.path.trim_matches('/') == name)
-            .map(|entry| INodeNumber::new(entry.inode as u128))
+            .enumerate()
+            .find(|(_, entry)| {
+                entry.path.starts_with(&parent_entry.path)
+                    && entry.path.ends_with(name)
+                    && if !parent_entry.path.is_empty() {
+                        entry.path.split('/').count() == parent_entry.path.split('/').count() + 1
+                    } else {
+                        true
+                    }
+            })
+            .map(|(index, _)| INodeNumber::new(index as u128))
             .ok_or(VfsError::NoSuchFile)
     }
 
@@ -45,11 +58,7 @@ impl FileSystem for InitramFs {
     }
 
     fn read(&self, inode_num: INodeNumber, offset: u64, buf: &mut [u8]) -> Result<u64, VfsError> {
-        let entry = self
-            .entries
-            .iter()
-            .find(|entry| entry.inode as u128 == inode_num.value())
-            .ok_or(VfsError::NoSuchFile)?;
+        let entry = &self.entries[inode_num.value() as usize];
 
         if entry.data.len() > offset as usize {
             buf[..entry.data.len() - offset as usize]

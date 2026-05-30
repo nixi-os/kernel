@@ -5,7 +5,7 @@ use super::inode::INodeId;
 use alloc::collections::BTreeMap;
 
 /// The file descriptor id points to a file descriptor
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FileDescriptorId(u64);
 
 impl FileDescriptorId {

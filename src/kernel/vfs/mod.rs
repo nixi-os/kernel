@@ -42,17 +42,21 @@ pub fn init() -> Result<(), VfsError> {
     let mut vfs = VFS.lock();
     let root = vfs.root();
 
-    vfs.create_dir(root, "proc")?;
-
-    let mount_point = vfs.lookup(OwnedPath::from("/proc"))?;
-
     vfs.mount(
-        mount_point,
+        root,
         MountSource::FileSystem {
-            name: "proc",
+            name: "initramfs",
             device: None,
         },
     )?;
+
+    let fd_id = vfs.open(OwnedPath::from("/initramfs/README.md"))?;
+
+    let mut buf = [0u8; 512];
+
+    let read = vfs.read(fd_id, &mut buf)?;
+
+    crate::log!("buf: {:?}", core::str::from_utf8(&buf[..read as usize]));
 
     Ok(())
 }
