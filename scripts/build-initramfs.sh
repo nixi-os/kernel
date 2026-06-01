@@ -1,3 +1,5 @@
 #!/bin/sh
 
-find "initramfs" -depth | cpio -ov > "initramfs.cpio"
+cd initramfs
+find . -depth | sed -e 's|./\(.*\)|\1|' -e '$d' | cpio -ov > ../initramfs.cpio
+cd ..
