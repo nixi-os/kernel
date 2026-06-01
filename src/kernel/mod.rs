@@ -4,6 +4,7 @@ pub mod drivers;
 pub mod fs;
 pub mod irq;
 pub mod mem;
+pub mod parse;
 pub mod scheduler;
 pub mod syscall;
 pub mod vfs;

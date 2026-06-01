@@ -1,11 +1,8 @@
-pub mod cpio;
-
 use super::FileSystem;
 
+use crate::kernel::parse::cpio::{CpioEntry, CpioParser};
 use crate::kernel::vfs::error::VfsError;
 use crate::kernel::vfs::inode::INodeNumber;
-
-use cpio::{CpioEntry, CpioParser};
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -19,7 +16,6 @@ impl InitramFs {
     /// Create a new initramfs
     pub fn new() -> InitramFs {
         let mut entries = vec![CpioEntry {
-            inode: 0,
             path: "",
             data: &[],
         }];

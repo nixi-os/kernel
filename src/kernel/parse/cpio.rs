@@ -6,7 +6,6 @@ use core::slice::Iter;
 /// A CPIO entry. The CPIO entry is stripped of all unused values
 #[derive(Debug)]
 pub struct CpioEntry<'a> {
-    pub inode: u16,
     pub path: &'a str,
     pub data: &'a [u8],
 }
@@ -61,7 +60,6 @@ impl<'a> Iterator for CpioParser<'a> {
     fn next(&mut self) -> Option<CpioEntry<'a>> {
         assert_eq!(u16::from_le_bytes(self.next_chunk::<2>(2)?), 0x71c7);
 
-        let inode = u16::from_le_bytes(self.next_chunk::<2>(14)?);
         let path_size = u16::from_le_bytes(self.next_chunk::<2>(0)?);
 
         let data_size_high = u16::from_le_bytes(self.next_chunk::<2>(0)?) as u32;
@@ -72,7 +70,6 @@ impl<'a> Iterator for CpioParser<'a> {
 
         if path != "TRAILER!!!" {
             Some(CpioEntry {
-                inode,
                 path,
                 data: self.next_bytes(data_size as usize, 2)?,
             })
