@@ -35,10 +35,6 @@ pub static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
 
 /// Initialize the virtual file system
 pub fn init() -> Result<(), VfsError> {
-    // TODO: in the future the file systems should all be mounted by userspace programs, eg. an init process
-    //
-    // this is only for testing
-
     let mut vfs = VFS.lock();
     let root = vfs.root();
 
@@ -50,13 +46,13 @@ pub fn init() -> Result<(), VfsError> {
         },
     )?;
 
-    let fd_id = vfs.open(OwnedPath::from("/initramfs/README.md"))?;
+    let fd_id = vfs.open(OwnedPath::from("/init"))?;
 
     let mut buf = [0u8; 512];
 
     let read = vfs.read(fd_id, &mut buf)?;
 
-    crate::log!("buf: {:?}", core::str::from_utf8(&buf[..read as usize]));
+    crate::log!("buf: {:x?}", &buf[..read as usize]);
 
     Ok(())
 }

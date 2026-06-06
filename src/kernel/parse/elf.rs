@@ -3,6 +3,7 @@
 use alloc::vec::Vec;
 
 /// The ELF header is present at the start of all ELF binaries
+#[repr(packed, C)]
 struct ElfHeader {
     e_ident: [char; 16],
     e_type: u16,
@@ -21,6 +22,7 @@ struct ElfHeader {
 }
 
 /// The program header describes a segment or other information the system needs to prepare the program for execution
+#[repr(packed, C)]
 pub struct ProgramHeader {
     p_type: u32,
     p_flags: u32,
@@ -39,6 +41,13 @@ pub struct ElfObject {
 }
 
 impl ElfObject {
-    // TODO: parse an elf object
-    pub fn parse(bytes: &[u8]) {}
+    /// Parse an ELF object from a byte slice
+    pub fn parse(bytes: &[u8]) -> Option<ElfObject> {
+        let header = super::decode::<ElfHeader>(bytes.get(..core::mem::size_of::<ElfHeader>())?);
+
+        let e_ident = header.e_ident;
+        crate::log!("header.e_ident: {:?}", e_ident);
+
+        None
+    }
 }

@@ -1,3 +1,5 @@
+//! The initramfs
+
 use super::FileSystem;
 
 use crate::kernel::parse::cpio::{CpioEntry, CpioParser};
@@ -57,10 +59,11 @@ impl FileSystem for InitramFs {
         let entry = &self.entries[inode_num.value() as usize];
 
         if entry.data.len() > offset as usize {
-            buf[..entry.data.len() - offset as usize]
-                .copy_from_slice(&entry.data[offset as usize..]);
+            let length = (entry.data.len() - offset as usize).min(buf.len());
 
-            Ok(entry.data.len() as u64 - offset)
+            buf[..length].copy_from_slice(&entry.data[offset as usize..offset as usize + length]);
+
+            Ok(length as u64)
         } else {
             Err(VfsError::OutOfBounds)
         }
