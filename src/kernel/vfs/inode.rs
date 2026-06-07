@@ -1,7 +1,7 @@
 //! Code for working with inodes
 
 use super::error::VfsError;
-use super::fs::FileSystem;
+use super::interface::{FileSystem, Metadata};
 
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
@@ -65,6 +65,11 @@ impl INode {
         self.fs.create_dir(self.inode_num, name)
     }
 
+    /// Get length of an inode
+    pub fn length(&self) -> Result<u64, VfsError> {
+        self.fs.length(self.inode_num)
+    }
+
     /// Read from inode
     pub fn read(&self, offset: u64, buf: &mut [u8]) -> Result<u64, VfsError> {
         self.fs.read(self.inode_num, offset, buf)
@@ -120,10 +125,10 @@ impl INodeCache {
     }
 
     /// Get an inode from its inode id
-    pub fn get(&mut self, inode_id: INodeId) -> Option<&INode> {
+    pub fn get(&mut self, inode_id: INodeId) -> &INode {
         self.touch(inode_id);
 
-        self.inodes.get(&inode_id)
+        &self.inodes[&inode_id]
     }
 
     /// Insert an inode and return its inode id

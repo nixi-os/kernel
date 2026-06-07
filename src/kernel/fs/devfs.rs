@@ -1,9 +1,8 @@
 //! The device file system is an interface for the device manager trough the virtual file system
 
-use super::FileSystem;
-
 use crate::kernel::vfs::error::VfsError;
 use crate::kernel::vfs::inode::INodeNumber;
+use crate::kernel::vfs::interface::FileSystem;
 
 // TODO: we should maybe have a generic implementation for state embedded in inode numbers, the
 // same way we do it in procfs, except its generic

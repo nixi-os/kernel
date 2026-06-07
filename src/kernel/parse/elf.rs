@@ -35,14 +35,14 @@ pub struct ProgramHeader {
 }
 
 /// An ELF object file
-pub struct ElfObject {
-    elf_header: ElfHeader,
-    program_headers: Vec<ProgramHeader>,
+pub struct ElfObject<'a> {
+    elf_header: &'a ElfHeader,
+    program_headers: &'a [ProgramHeader],
 }
 
-impl ElfObject {
+impl<'a> ElfObject<'a> {
     /// Parse an ELF object from a byte slice
-    pub fn parse(bytes: &[u8]) -> Option<ElfObject> {
+    pub fn parse(bytes: &'a [u8]) -> Option<ElfObject<'a>> {
         let header = super::decode::<ElfHeader>(bytes.get(..core::mem::size_of::<ElfHeader>())?);
 
         let e_ident = header.e_ident;

@@ -1,10 +1,9 @@
 //! The initramfs
 
-use super::FileSystem;
-
 use crate::kernel::parse::cpio::{CpioEntry, CpioParser};
 use crate::kernel::vfs::error::VfsError;
 use crate::kernel::vfs::inode::INodeNumber;
+use crate::kernel::vfs::interface::{FileSystem, Metadata};
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -28,6 +27,12 @@ impl InitramFs {
         ))));
 
         InitramFs { entries }
+    }
+}
+
+impl Metadata for InitramFs {
+    fn length(&self, inode_num: INodeNumber) -> Result<u64, VfsError> {
+        todo!()
     }
 }
 

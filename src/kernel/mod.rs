@@ -10,6 +10,7 @@ pub mod syscall;
 pub mod vfs;
 
 use scheduler::context;
+use vfs::OwnedPath;
 
 #[inline(never)]
 extern "C" fn task1() -> ! {
@@ -37,16 +38,21 @@ extern "C" fn task1() -> ! {
 //
 // TODO: we will have to do device discovery
 
-pub fn entry() -> ! {
+/// Load the init process
+pub fn load_init() -> ! {
+    if let Err(err) = vfs::init() {
+        panic!("failed to initialize: {:?}", err);
+    }
+
+    vfs::with_vfs(|vfs| {
+        let fd = vfs.open(OwnedPath::from("/init"));
+    });
+
     scheduler::with_scheduler(|scheduler| {
         let proc_id = scheduler.create_proc();
 
         scheduler.create_task(proc_id, task1 as *const () as u64, 3);
     });
-
-    if let Err(err) = vfs::init() {
-        panic!("failed to initialize: {:?}", err);
-    }
 
     context::enter_usermode();
 }

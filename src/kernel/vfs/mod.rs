@@ -4,12 +4,13 @@ pub mod dentry;
 pub mod error;
 pub mod fd;
 pub mod inode;
+pub mod interface;
 
 use dentry::DEntryCache;
 use error::VfsError;
 use fd::{FileDescriptorCache, FileDescriptorId};
-use fs::FileSystem;
 use inode::{INode, INodeCache, INodeId};
+use interface::FileSystem;
 
 use crate::kernel::device::block::BlockDevice;
 use crate::kernel::fs;
@@ -24,7 +25,7 @@ use core::str::Split;
 use spin::{Lazy, Mutex};
 
 /// The global virtual file system handle
-pub static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
+static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
     let rootfs = RootFs::new();
 
     Mutex::new(VirtualFileSystem::new(INode::new(
@@ -32,6 +33,11 @@ pub static VFS: Lazy<Mutex<VirtualFileSystem>> = Lazy::new(|| {
         Arc::new(rootfs),
     )))
 });
+
+/// Call F with the virtual file system
+pub fn with_vfs<R, F: FnOnce(&mut VirtualFileSystem) -> R>(f: F) -> R {
+    f(&mut VFS.lock())
+}
 
 /// Initialize the virtual file system
 pub fn init() -> Result<(), VfsError> {
@@ -98,6 +104,13 @@ pub enum MountSource<'a> {
     },
 }
 
+/// File metadata
+#[repr(packed, C)]
+pub struct Metadata {
+    length: u64,
+    cursor: u64,
+}
+
 /// The virtual file system
 pub struct VirtualFileSystem {
     fd_cache: FileDescriptorCache,
@@ -140,18 +153,24 @@ impl VirtualFileSystem {
         }
     }
 
+    /// Get metadata for a file
+    pub fn metadata(&mut self, fd_id: FileDescriptorId) -> Result<Metadata, VfsError> {
+        let fd = self.fd_cache.get_mut(fd_id).ok_or(VfsError::NoSuchFile)?;
+        let length = self.inode_cache.get(fd.inode_id).length()?;
+
+        Ok(Metadata {
+            length,
+            cursor: fd.offset,
+        })
+    }
+
     // NOTE: write and read are pretty much identical, however, its not worth it to generalize it
     // when its only used twice
 
     /// Read bytes into buf from file and return bytes read
     pub fn read(&mut self, fd_id: FileDescriptorId, buf: &mut [u8]) -> Result<u64, VfsError> {
         let fd = self.fd_cache.get_mut(fd_id).ok_or(VfsError::NoSuchFile)?;
-
-        let read = self
-            .inode_cache
-            .get(fd.inode_id)
-            .expect("inode owned by file descriptor should never be evicted")
-            .read(fd.offset, buf)?;
+        let read = self.inode_cache.get(fd.inode_id).read(fd.offset, buf)?;
 
         fd.offset += read;
 
@@ -161,12 +180,7 @@ impl VirtualFileSystem {
     /// Write bytes from buf into file and return bytes written
     pub fn write(&mut self, fd_id: FileDescriptorId, buf: &[u8]) -> Result<u64, VfsError> {
         let fd = self.fd_cache.get_mut(fd_id).ok_or(VfsError::NoSuchFile)?;
-
-        let written = self
-            .inode_cache
-            .get(fd.inode_id)
-            .expect("inode owned by file descriptor should never be evicted")
-            .write(fd.offset, buf)?;
+        let written = self.inode_cache.get(fd.inode_id).write(fd.offset, buf)?;
 
         fd.offset += written;
 
@@ -174,11 +188,10 @@ impl VirtualFileSystem {
     }
 
     /// Create a subdirectory under parent
-    pub fn create_dir(&mut self, parent: INodeId, name: &str) -> Result<(), VfsError> {
-        self.inode_cache
-            .get(parent)
-            .ok_or(VfsError::NoSuchFile)?
-            .create_dir(name)
+    pub fn create_dir(&mut self, fd_id: FileDescriptorId, name: &str) -> Result<(), VfsError> {
+        let fd = self.fd_cache.get_mut(fd_id).ok_or(VfsError::NoSuchFile)?;
+
+        self.inode_cache.get(fd.inode_id).create_dir(name)
     }
 
     /// Prepare a mount source
@@ -239,11 +252,7 @@ impl VirtualFileSystem {
             } else if let Some(cached) = self.dentry_cache.get(current, name) {
                 current = cached;
             } else {
-                let inode = self
-                    .inode_cache
-                    .get(current)
-                    .ok_or(VfsError::NoSuchFile)?
-                    .lookup(name)?;
+                let inode = self.inode_cache.get(current).lookup(name)?;
 
                 let inode_id = self.inode_cache.insert(inode);
 

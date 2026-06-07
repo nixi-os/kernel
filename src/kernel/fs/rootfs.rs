@@ -1,9 +1,8 @@
 //! The root file system
 
-use super::FileSystem;
-
 use crate::kernel::vfs::error::VfsError;
 use crate::kernel::vfs::inode::INodeNumber;
+use crate::kernel::vfs::interface::{FileSystem, Metadata};
 
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
@@ -23,6 +22,12 @@ impl RootFs {
             entries: RwLock::new(BTreeMap::new()),
             next: Mutex::new(0),
         }
+    }
+}
+
+impl Metadata for RootFs {
+    fn length(&self, inode_num: INodeNumber) -> Result<u64, VfsError> {
+        todo!()
     }
 }
 

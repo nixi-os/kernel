@@ -1,9 +1,8 @@
 //! The procfs provides an interface for managing processes through the virtual file system
 
-use super::FileSystem;
-
 use crate::kernel::vfs::error::VfsError;
 use crate::kernel::vfs::inode::INodeNumber;
+use crate::kernel::vfs::interface::{FileSystem, Metadata};
 
 /// The ProcPathFlags allows a procfs path to be encoded as an inode number
 struct ProcPathFlags;
@@ -59,6 +58,12 @@ impl ProcFile {
 /// encoding of a path
 #[derive(Default)]
 pub struct ProcFs;
+
+impl Metadata for ProcFs {
+    fn length(&self, inode_num: INodeNumber) -> Result<u64, VfsError> {
+        Err(VfsError::Unsupported)
+    }
+}
 
 impl FileSystem for ProcFs {
     fn lookup(&self, parent: INodeNumber, name: &str) -> Result<INodeNumber, VfsError> {

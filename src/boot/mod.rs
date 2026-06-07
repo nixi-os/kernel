@@ -46,7 +46,7 @@ pub fn boot() -> Result<(), BootError> {
 
             pma::init(&mmap);
 
-            kernel::entry();
+            kernel::load_init();
         }
         None => Err(BootError::AcpiNotFound),
     }
