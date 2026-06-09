@@ -2,6 +2,8 @@
 ///! itself with virtual memory.
 use crate::helpers::*;
 
+use core::ops::Range;
+
 use spin::Mutex;
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned, MemoryType};
 
@@ -73,27 +75,36 @@ impl PhysicalMemoryAllocator {
         }
     }
 
-    // TODO: implement allocation across multiple chunks
-    /// Allocate a continuous set of physical frames within a 128 frame chunk
-    pub fn alloc(&mut self, frames: usize) -> *const () {
-        assert_ne!(frames, 0);
+    /// Find the lowest continuous set of physical frames and return its range
+    fn find_free(&self, frames: usize) -> Range<usize> {
+        for (index, window) in self.bitmap.windows((frames / 128) + 1).enumerate() {
+            let first = window.first().expect("window size must be above 0");
 
-        for (index, chunk) in self.bitmap.iter_mut().enumerate() {
-            if *chunk != u128::MAX {
-                let bit = chunk.trailing_ones();
-                let mask = ((1u128 << frames) - 1) << bit;
+            let offset = frames % 128;
+            let mask = (offset > 0)
+                .then(|| ((1u128 << (128 - offset)) - 1) << offset)
+                .unwrap_or(u128::MAX);
 
-                if *chunk & mask == 0u128 {
-                    *chunk |= mask;
-
-                    let address = ((index * 128) + bit as usize) * 4096;
-
-                    return address as *const ();
-                }
+            if first & mask == 0 && window.iter().skip(1).all(|chunk| *chunk == 0) {
+                return ((index * u128::BITS as usize) + offset as usize)
+                    ..((index + window.len()) * u128::BITS as usize);
             }
         }
 
         panic!("out of memory")
+    }
+
+    /// Allocate a continuous set of physical frames within a 128 frame chunk
+    pub fn alloc(&mut self, frames: usize) -> *const () {
+        assert_ne!(frames, 0);
+
+        let free = self.find_free(frames);
+
+        for bit in free.clone() {
+            self.bitmap[bit / u128::BITS as usize] |= 1u128 << (bit % u128::BITS as usize);
+        }
+
+        (free.start * 4096) as *const ()
     }
 
     /// Free a continuous set of physical frames.
