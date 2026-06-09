@@ -32,7 +32,9 @@ impl InitramFs {
 
 impl Metadata for InitramFs {
     fn length(&self, inode_num: INodeNumber) -> Result<u64, VfsError> {
-        todo!()
+        let entry = &self.entries[inode_num.value() as usize];
+
+        Ok(entry.data.len() as u64)
     }
 }
 

@@ -52,14 +52,6 @@ pub fn init() -> Result<(), VfsError> {
         },
     )?;
 
-    let fd_id = vfs.open(OwnedPath::from("/init"))?;
-
-    let mut buf = [0u8; 512];
-
-    let read = vfs.read(fd_id, &mut buf)?;
-
-    crate::log!("buf: {:x?}", &buf[..read as usize]);
-
     Ok(())
 }
 
@@ -107,8 +99,8 @@ pub enum MountSource<'a> {
 /// File metadata
 #[repr(packed, C)]
 pub struct Metadata {
-    length: u64,
-    cursor: u64,
+    pub length: u64,
+    pub cursor: u64,
 }
 
 /// The virtual file system

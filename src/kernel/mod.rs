@@ -9,8 +9,13 @@ pub mod scheduler;
 pub mod syscall;
 pub mod vfs;
 
+use parse::elf::ElfObject;
 use scheduler::context;
 use vfs::OwnedPath;
+use vfs::error::VfsError;
+
+use alloc::vec;
+use alloc::vec::Vec;
 
 #[inline(never)]
 extern "C" fn task1() -> ! {
@@ -44,9 +49,21 @@ pub fn load_init() -> ! {
         panic!("failed to initialize: {:?}", err);
     }
 
-    vfs::with_vfs(|vfs| {
-        let fd = vfs.open(OwnedPath::from("/init"));
-    });
+    // TODO: everything is shit, this is ugly subhuman code. Make it better, clean up, this is horrible
+
+    if let Ok(init_program) = vfs::with_vfs(|vfs| -> Result<Vec<u8>, VfsError> {
+        let fd = vfs.open(OwnedPath::from("/init"))?;
+
+        let metadata = vfs.metadata(fd)?;
+
+        let mut buf = vec![0u8; metadata.length as usize];
+
+        vfs.read(fd, &mut buf)?;
+
+        Ok(buf)
+    }) {
+        ElfObject::parse(&init_program);
+    }
 
     scheduler::with_scheduler(|scheduler| {
         let proc_id = scheduler.create_proc();
