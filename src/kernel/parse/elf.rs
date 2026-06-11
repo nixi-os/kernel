@@ -1,11 +1,9 @@
 //! The Executable and Linking Format is a format for binary executables, object code and shared libraries
 
-use alloc::vec::Vec;
-
 /// The ELF header is present at the start of all ELF binaries
 #[repr(packed, C)]
 struct ElfHeader {
-    e_ident: [char; 16],
+    e_ident: [u8; 16],
     e_type: u16,
     e_machine: u16,
     e_version: u32,
@@ -22,6 +20,7 @@ struct ElfHeader {
 }
 
 /// The program header describes a segment or other information the system needs to prepare the program for execution
+#[derive(Debug)]
 #[repr(packed, C)]
 pub struct ProgramHeader {
     p_type: u32,
@@ -34,20 +33,56 @@ pub struct ProgramHeader {
     p_align: u64,
 }
 
+/// An iterator over program headers
+pub struct ProgramHeaderIterator<'a> {
+    offset: u64,
+    end: u64,
+    bytes: &'a [u8],
+}
+
+impl<'a> Iterator for ProgramHeaderIterator<'a> {
+    type Item = &'a ProgramHeader;
+
+    fn next(&mut self) -> Option<&'a ProgramHeader> {
+        if self.offset < self.end {
+            let bytes = self.bytes.get(
+                self.offset as usize..self.offset as usize + core::mem::size_of::<ProgramHeader>(),
+            )?;
+
+            self.offset += core::mem::size_of::<ProgramHeader>() as u64;
+
+            Some(super::decode::<ProgramHeader>(bytes))
+        } else {
+            None
+        }
+    }
+}
+
 /// An ELF object file
 pub struct ElfObject<'a> {
     elf_header: &'a ElfHeader,
-    program_headers: &'a [ProgramHeader],
+    bytes: &'a [u8],
 }
 
 impl<'a> ElfObject<'a> {
     /// Parse an ELF object from a byte slice
     pub fn parse(bytes: &'a [u8]) -> Option<ElfObject<'a>> {
-        let header = super::decode::<ElfHeader>(bytes.get(..core::mem::size_of::<ElfHeader>())?);
+        let elf_header =
+            super::decode::<ElfHeader>(bytes.get(..core::mem::size_of::<ElfHeader>())?);
 
-        let e_ident = header.e_ident;
-        crate::log!("header.e_ident: {:?}", e_ident);
+        match elf_header.e_ident[0..4] {
+            [0x7f, 0x45, 0x4c, 0x46] => Some(ElfObject { elf_header, bytes }),
+            _ => None,
+        }
+    }
 
-        None
+    /// Return an iterator of program headers
+    pub fn program_headers(&'a self) -> ProgramHeaderIterator<'a> {
+        ProgramHeaderIterator {
+            offset: self.elf_header.e_phoff,
+            end: self.elf_header.e_phoff
+                + (self.elf_header.e_phnum as u64 * core::mem::size_of::<ProgramHeader>() as u64),
+            bytes: self.bytes,
+        }
     }
 }
