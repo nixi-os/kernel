@@ -1,33 +1,33 @@
 //! Syscall error
 
-use alloc::boxed::Box;
+use crate::kernel::vfs::error::VfsError;
 
-/// An error inside a syscall handler
-pub trait HandlerError {
-    fn error_code(&self) -> u64;
-}
+use thiserror::Error;
 
-impl HandlerError for () {
-    fn error_code(&self) -> u64 {
-        0
-    }
-}
-
-/// A syscall error
+/// A syscall error is a generalized representation of internal error types
+#[repr(u64)]
+#[derive(Error, Debug)]
 pub enum SyscallError {
-    /// No handler is registered for the syscall number
-    NotFound,
+    #[error("no handler is registered for the syscall number")]
+    NotFound = 1,
 
-    /// An error occured inside the syscall handler
-    HandlerError(Box<dyn HandlerError + Send + Sync>),
+    #[error("the argument is invalid")]
+    InvalidArgument = 2,
+
+    #[error("resource exhausted")]
+    ResourceExhausted = 3,
+
+    #[error("feature not implemented")]
+    Unsupported = 4,
 }
 
-impl SyscallError {
-    /// Return the error code. Handler errors are always error_code + 0x1000
-    pub fn error_code(&self) -> u64 {
-        match self {
-            SyscallError::NotFound => 1,
-            SyscallError::HandlerError(err) => err.error_code() + 0x1000,
+impl From<VfsError> for SyscallError {
+    fn from(error: VfsError) -> SyscallError {
+        match error {
+            VfsError::OutOfBounds => SyscallError::InvalidArgument,
+            VfsError::OutOfId => SyscallError::ResourceExhausted,
+            VfsError::NoSuchFile => SyscallError::NotFound,
+            VfsError::Unsupported => SyscallError::Unsupported,
         }
     }
 }

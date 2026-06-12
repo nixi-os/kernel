@@ -4,7 +4,6 @@ use crate::kernel::syscall::error::SyscallError;
 use crate::kernel::vfs::fd::FileDescriptorId;
 use crate::kernel::vfs::{self, OwnedPath};
 
-use alloc::boxed::Box;
 use core::slice;
 
 /// Each syscall has a unique syscall number
@@ -29,10 +28,9 @@ pub fn dispatch(syscall: u64, args: [u64; 4]) -> Result<u64, SyscallError> {
     match syscall {
         SyscallNumber::OPEN => {
             let path = unsafe { OwnedPath::from_raw_parts(args[0] as *mut u8, args[1] as usize) };
+            let fd_id = vfs::with_vfs(|vfs| vfs.open(path)).map(|fd| fd.value())?;
 
-            vfs::with_vfs(|vfs| vfs.open(path))
-                .map_err(|err| SyscallError::HandlerError(Box::new(err)))
-                .map(|fd| fd.value())
+            Ok(fd_id)
         }
         SyscallNumber::CLOSE => {
             vfs::with_vfs(|vfs| vfs.close(FileDescriptorId::new(args[0])));
@@ -41,15 +39,15 @@ pub fn dispatch(syscall: u64, args: [u64; 4]) -> Result<u64, SyscallError> {
         }
         SyscallNumber::READ => {
             let buf = unsafe { slice::from_raw_parts_mut(args[1] as *mut u8, args[2] as usize) };
+            let read = vfs::with_vfs(|vfs| vfs.read(FileDescriptorId::new(args[0]), buf))?;
 
-            vfs::with_vfs(|vfs| vfs.read(FileDescriptorId::new(args[0]), buf))
-                .map_err(|err| SyscallError::HandlerError(Box::new(err)))
+            Ok(read)
         }
         SyscallNumber::WRITE => {
             let buf = unsafe { slice::from_raw_parts(args[1] as *const u8, args[2] as usize) };
+            let write = vfs::with_vfs(|vfs| vfs.write(FileDescriptorId::new(args[0]), buf))?;
 
-            vfs::with_vfs(|vfs| vfs.write(FileDescriptorId::new(args[0]), buf))
-                .map_err(|err| SyscallError::HandlerError(Box::new(err)))
+            Ok(write)
         }
         _ => Err(SyscallError::NotFound),
     }

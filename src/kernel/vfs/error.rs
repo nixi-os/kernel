@@ -1,38 +1,19 @@
 //! Error handling in the VFS
 
-use crate::kernel::syscall::error::HandlerError;
+use thiserror::Error;
 
 /// Virtual file system errors
-#[derive(Debug, Clone, Copy)]
+#[derive(Error, Debug, Clone, Copy)]
 pub enum VfsError {
-    /// The offset is beyond EOF
+    #[error("the offset is beyond EOF")]
     OutOfBounds,
 
-    /// The requested file does not exist
+    #[error("the requested file does not exist")]
     NoSuchFile,
 
-    /// The bitmap allocator for file descriptor and inode id's failed to find a free id
+    #[error("failed to allocate id")]
     OutOfId,
 
-    /// Unsupported feature
+    #[error("unsupported feature")]
     Unsupported,
 }
-
-impl HandlerError for VfsError {
-    fn error_code(&self) -> u64 {
-        *self as u64
-    }
-}
-
-impl core::fmt::Display for VfsError {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> Result<(), core::fmt::Error> {
-        match self {
-            VfsError::OutOfBounds => f.write_str("out of bounds"),
-            VfsError::NoSuchFile => f.write_str("no such file"),
-            VfsError::OutOfId => f.write_str("out of id"),
-            VfsError::Unsupported => f.write_str("unsupported feature"),
-        }
-    }
-}
-
-impl core::error::Error for VfsError {}

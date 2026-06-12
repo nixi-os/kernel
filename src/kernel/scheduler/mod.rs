@@ -1,7 +1,6 @@
 //! The scheduler implements multitasking on a single cpu
 
 pub mod context;
-pub mod error;
 pub mod proc;
 pub mod task;
 

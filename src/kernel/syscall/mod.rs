@@ -109,6 +109,6 @@ pub extern "C" fn syscall(ctx: *mut Context) {
         );
 
         (*ctx).general.rax = result.is_err() as u64;
-        (*ctx).general.rbx = result.map_or_else(|err| err.error_code(), |value| value);
+        (*ctx).general.rbx = result.map_or_else(|err| err as u64, |value| value);
     }
 }
