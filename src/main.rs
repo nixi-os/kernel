@@ -10,11 +10,27 @@
 
 extern crate alloc;
 
-mod boot;
+mod arch;
+mod device;
+mod drivers;
+mod fs;
 mod helpers;
-mod kernel;
+mod irq;
+mod loader;
+mod mem;
+mod parse;
+mod scheduler;
+mod syscall;
+mod vfs;
+
+use arch::x86_64::{self, tables};
+use mem::pma;
+use scheduler::context;
+use vfs::MountSource;
 
 use uefi::prelude::*;
+use uefi::proto::loaded_image::LoadedImage;
+use uefi::table::cfg::ConfigTableEntry;
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
@@ -32,11 +48,70 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-#[entry]
-fn main() -> Status {
-    if let Err(err) = boot::boot() {
-        error!("fatal boot error: {}", err);
+/// Load the init process
+pub fn load_init() -> ! {
+    vfs::with_vfs(|vfs| {
+        let root = vfs.root();
+
+        let _ = vfs.mount(
+            root,
+            MountSource::FileSystem {
+                name: "initramfs",
+                device: None,
+            },
+        );
+    });
+
+    if let Err(err) = loader::load_from_fs("/init") {
+        panic!("failed to load init process: {:?}", err);
     }
 
-    loop {}
+    /*
+    scheduler::with_scheduler(|scheduler| {
+        let proc_id = scheduler.create_proc();
+
+        scheduler.create_task(proc_id, task1 as *const () as u64, 3);
+    });
+    */
+
+    context::enter_usermode();
+}
+
+/// Exit boot services, initialize all subsystems and load init process
+#[entry]
+pub fn main() -> Status {
+    let mut acpi: Option<*const core::ffi::c_void> = None;
+
+    let handle = boot::image_handle();
+    let image = boot::open_protocol_exclusive::<LoadedImage>(handle)
+        .expect("failed to open loaded image protocol");
+
+    let (base, _) = image.info();
+
+    log!("kernel loaded at: {:#x?}", base);
+
+    system::with_config_table(|table| {
+        for entry in table {
+            if entry.guid == ConfigTableEntry::ACPI2_GUID {
+                acpi = Some(entry.address);
+            }
+        }
+    });
+
+    match acpi {
+        Some(acpi) => {
+            let mmap = unsafe { boot::exit_boot_services(None) };
+
+            x86_64::init();
+
+            tables::init();
+
+            irq::init();
+
+            pma::init(&mmap);
+
+            load_init();
+        }
+        None => panic!("ACPI not found"),
+    }
 }

@@ -1,4 +1,4 @@
-use crate::kernel::drivers::serial::SERIAL;
+use crate::drivers::serial::SERIAL;
 
 use core::fmt::{Arguments, Error, Write};
 
